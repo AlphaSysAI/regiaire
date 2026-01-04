@@ -1,0 +1,95 @@
+@import "tailwindcss";
+
+@theme inline {
+  --font-sans: var(--font-inter); /* On utilise Inter pour un look pro */
+  --color-brand: #f97316;         /* Orange OptiRoute */
+}
+
+:root {
+  /* On définit des variables sombres par défaut */
+  --background: #020617; /* slate-950 */
+  --foreground: #f8fafc; /* slate-50 */
+  --card: #1e293b;       /* slate-800 */
+  --border: #334155;     /* slate-700 */
+}
+
+body {
+  background-color: var(--background);
+  color: var(--foreground);
+  font-family: ui-sans-serif, system-ui, -apple-system, sans-serif;
+  min-height: 100vh;
+}
+
+/* --- CUSTOMISATION DU SCANNER OPTIROUTEIA --- */
+
+/* Conteneur principal du scanner */
+#reader {
+  border: none !important;
+  background-color: var(--card) !important;
+  border-radius: 1.5rem !important;
+  overflow: hidden !important;
+}
+
+/* Vidéo du scan */
+#reader video {
+  border-radius: 1rem !important;
+  object-fit: cover !important;
+}
+
+/* Boutons générés par la librairie (Start/Stop Scanning) */
+#reader__dashboard_section_csr button {
+  background-color: #f97316 !important; /* Orange de la marque */
+  color: white !important;
+  border-radius: 0.75rem !important;
+  padding: 12px 24px !important;
+  font-weight: 800 !important;
+  text-transform: uppercase !important;
+  letter-spacing: 0.05em !important;
+  font-size: 0.75rem !important;
+  border: none !important;
+  margin-top: 15px !important;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  width: 100%;
+}
+
+#reader__dashboard_section_csr button:active {
+  transform: scale(0.95);
+  opacity: 0.9;
+}
+
+/* Textes de statut (ex: "Requesting camera permissions") */
+#reader__dashboard_section_csr span, 
+#reader__status_span,
+#reader__header_message {
+  color: #94a3b8 !important; /* slate-400 */
+  font-weight: 500 !important;
+  font-size: 0.85rem !important;
+}
+
+/* Sélecteur de caméra (Dropdown) */
+#reader__camera_selection {
+  padding: 10px !important;
+  border-radius: 0.75rem !important;
+  border: 1px solid var(--border) !important;
+  background-color: #0f172a !important; /* slate-900 */
+  color: white !important;
+  width: 100% !important;
+  margin-bottom: 10px !important;
+  font-size: 0.9rem !important;
+}
+
+/* Masquer le lien de la librairie pour un look plus "App Pro" */
+#reader__dashboard_section_fsr a {
+  display: none !important;
+}
+
+input::-webkit-outer-spin-button,
+input::-webkit-inner-spin-button {
+  -webkit-appearance: none;
+  margin: 0;
+}
+
+input[type=number] {
+  -moz-appearance: textfield;
+}
