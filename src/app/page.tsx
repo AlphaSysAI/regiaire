@@ -28,16 +28,32 @@ export default function Dashboard() {
   const runCoreLogic = async (aireId: string) => {
     setLoading(true);
     try {
-      const weatherData = await getWeatherData(); 
       const dateLimiteStr = new Date(Date.now() + 3 * 86400000).toISOString().split('T')[0];
 
-      const [vacancesActive, wasteRes, expiringRes, pendingRes, productsRes] = await Promise.all([
-        checkVacancesStatus(),
+      // PARALLÉLISER TOUS LES APPELS INITIAUX
+      const [weatherData, vacancesActive, wasteRes, expiringRes, pendingRes, productsRes, forecastRes] = await Promise.all([
+        getWeatherData(), // Météo actuelle
+        checkVacancesStatus(), // Vacances
         supabase.from('waste_logs').select('cost_loss').eq('aire_id', aireId),
         supabase.from('product_stocks').select('*, products(name)').eq('aire_id', aireId).lte('expiry_date', dateLimiteStr).gt('quantity', 0),
         supabase.from('pending_deliveries').select('*').eq('aire_id', aireId).eq('status', 'pending'),
-        supabase.from('products').select('*').eq('aire_id', aireId)
+        supabase.from('products').select('*').eq('aire_id', aireId),
+        fetch("/api/weather?forecast=true").then(r => r.json()) // Prévisions météo en parallèle
       ]);
+
+      // Récupérer les données trafic (actuel + prévisions sur 7 jours)
+      const trafficRes = await fetch(`/api/traffic?city=${encodeURIComponent(weatherData.city || 'Capendu')}&forecast=true`)
+        .then(r => r.json())
+        .catch(() => ({ 
+          current: { trafficLevel: 'normal', trafficScore: 50, impactAire: 'normal', congestion: '' },
+          forecast: []
+        }));
+      
+      const trafficData = trafficRes.current || trafficRes; // Compatibilité avec l'ancien format
+      const trafficForecast = trafficRes.forecast || [];
+
+      // Afficher la météo IMMÉDIATEMENT (sans attendre le verdict)
+      setWeather(weatherData);
   
       const totalLoss = (wasteRes.data || []).reduce((acc, curr) => acc + (Number(curr.cost_loss) || 0), 0);
       
@@ -66,10 +82,7 @@ export default function Dashboard() {
         pendingBLCount: groupsArray.length
       });
 
-      // Récupérer les prévisions météo sur 7 jours
-      const forecastRes = await fetch("/api/weather?forecast=true");
-      const forecastData = await forecastRes.json();
-
+      // Appel verdict (le plus long, mais météo déjà affichée)
       const res = await fetch("/api/verdict", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -77,17 +90,18 @@ export default function Dashboard() {
           temp: weatherData.temp, 
           condition: weatherData.condition, 
           city: weatherData.city,
-          forecast: forecastData.forecast || [], // Prévisions sur 7 jours
+          forecast: forecastRes.forecast || [], // Prévisions météo sur 7 jours
           isVacances: vacancesActive, 
           products: productsRes.data || [], 
           expiringSoon: expiringRes.data || [], 
           totalLoss,
-          aireId: aireId
+          aireId: aireId,
+          traffic: trafficData, // Données trafic actuelles
+          trafficForecast: trafficForecast // Prévisions trafic sur 7 jours
         })
       });
       const dataVerdict = await res.json();
       setAiVerdict(dataVerdict.verdict);
-      setWeather(weatherData);
       setFeedbackSent(null); // Reset feedback quand nouveau verdict
       
       // Toujours stocker le contexte pour permettre le feedback

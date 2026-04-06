@@ -5,8 +5,10 @@ import Link from "next/link";
 import { 
   LayoutDashboard, 
   ScanLine, 
+  Package,
   Users, 
-  TrendingDown // Import de l'icône pour AntiGaspi
+  TrendingDown, // Import de l'icône pour AntiGaspi
+  Calendar // Import de l'icône pour Planning
 } from "lucide-react";
 
 const inter = Inter({ subsets: ["latin"] });
@@ -42,6 +44,11 @@ export default function RootLayout({
             <span className="text-[10px] font-bold uppercase tracking-wide">Scanner</span>
           </Link>
 
+          <Link href="/inventaire" className="flex flex-col items-center justify-center space-y-1 text-gray-400 hover:text-orange-500 transition-colors">
+            <Package size={24} />
+            <span className="text-[9px] font-bold uppercase tracking-wide">Stock</span>
+          </Link>
+
           {/* NOUVEL ONGLET ANTIGASPI */}
           <Link href="/antigaspi" className="flex flex-col items-center justify-center space-y-1 text-gray-400 hover:text-orange-500 transition-colors">
             <TrendingDown size={24} />
@@ -51,6 +58,11 @@ export default function RootLayout({
           <Link href="/equipe" className="flex flex-col items-center justify-center space-y-1 text-gray-400 hover:text-orange-500 transition-colors">
             <Users size={24} />
             <span className="text-[10px] font-bold uppercase tracking-wide">Équipe</span>
+          </Link>
+
+          <Link href="/planning" className="flex flex-col items-center justify-center space-y-1 text-gray-400 hover:text-orange-500 transition-colors">
+            <Calendar size={24} />
+            <span className="text-[10px] font-bold uppercase tracking-wide">Planning</span>
           </Link>
 
         </nav>

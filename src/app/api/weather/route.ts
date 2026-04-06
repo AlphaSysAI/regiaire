@@ -78,18 +78,18 @@ export async function GET(req: NextRequest) {
       });
     } else {
       // Mode actuel (données du jour)
-      const url = lat && lon
-        ? `https://api.openweathermap.org/data/2.5/weather?lat=${lat}&lon=${lon}&units=metric&appid=${OWM_KEY}&lang=fr`
-        : `https://api.openweathermap.org/data/2.5/weather?q=Capendu,fr&units=metric&appid=${OWM_KEY}&lang=fr`;
+  const url = lat && lon
+    ? `https://api.openweathermap.org/data/2.5/weather?lat=${lat}&lon=${lon}&units=metric&appid=${OWM_KEY}&lang=fr`
+    : `https://api.openweathermap.org/data/2.5/weather?q=Capendu,fr&units=metric&appid=${OWM_KEY}&lang=fr`;
 
-      const res = await fetch(url);
-      const data = await res.json();
-      return NextResponse.json({
-        temp: data.main.temp,
-        condition: data.weather[0].main,
-        description: data.weather[0].description,
-        city: data.name,
-      });
+    const res = await fetch(url);
+    const data = await res.json();
+    return NextResponse.json({
+      temp: data.main.temp,
+      condition: data.weather[0].main,
+      description: data.weather[0].description,
+      city: data.name,
+    });
     }
   } catch (err) {
     return NextResponse.json({
