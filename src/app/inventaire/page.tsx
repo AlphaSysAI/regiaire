@@ -110,7 +110,7 @@ export default function InventairePage() {
             Inventaire <span className="text-orange-500">import</span>
           </h1>
           <p className="text-slate-500 text-[11px] font-bold uppercase tracking-wider mt-0.5">
-            Fichier Excel → stocks OptiRoute
+            Fichier Excel → stocks RégiAire
           </p>
         </div>
       </div>

@@ -299,7 +299,7 @@ export default function PlanningPage() {
 
     const doc = new jsPDF('landscape', 'mm', 'a4');
     const planning = schedule.planning_data.planning;
-    const employeesList = [...new Set(
+    const employeesList = [...new Set<string>(
       planning.flatMap((day: any) => 
         day.shifts?.map((s: any) => s.employee) || []
       )
@@ -307,7 +307,7 @@ export default function PlanningPage() {
 
     const startDate = new Date(schedule.periode_debut + 'T12:00:00');
     const endDate = new Date(schedule.periode_fin + 'T12:00:00');
-    const days = [];
+    const days: Date[] = [];
     for (let d = new Date(startDate); d <= endDate; d.setDate(d.getDate() + 1)) {
       days.push(new Date(d));
     }
@@ -359,7 +359,7 @@ export default function PlanningPage() {
     if (!schedule.planning_data?.planning) return null;
 
     const planning = schedule.planning_data.planning;
-    const employeesList = [...new Set(
+    const employeesList = [...new Set<string>(
       planning.flatMap((day: any) => 
         day.shifts?.map((s: any) => s.employee) || []
       )
@@ -367,7 +367,7 @@ export default function PlanningPage() {
 
     const startDate = new Date(schedule.periode_debut + 'T12:00:00');
     const endDate = new Date(schedule.periode_fin + 'T12:00:00');
-    const days = [];
+    const days: Date[] = [];
     for (let d = new Date(startDate); d <= endDate; d.setDate(d.getDate() + 1)) {
       days.push(new Date(d));
     }

@@ -10,11 +10,19 @@ import {
 import { useRouter } from 'next/navigation';
 import IAUpload from '@/components/IAUpload'; 
 import { checkVacancesStatus, getWeatherData } from '@/lib/intelligence';
+import {
+  parseAireCoords,
+  weatherQueryParams,
+  aireDisplayLabel,
+  type AireLocation,
+} from '@/lib/aire-location';
 
 export default function Dashboard() {
   const router = useRouter();
   const [loading, setLoading] = useState(true);
-  const [weather, setWeather] = useState({ temp: 15, condition: 'Clear', city: 'Capendu' });
+  const [weather, setWeather] = useState({ temp: 15, condition: 'Clear', city: '' });
+  const [aireLabel, setAireLabel] = useState('');
+  const [aireLocation, setAireLocation] = useState<AireLocation>({});
   const [aiVerdict, setAiVerdict] = useState("Analyse des flux...");
   const [stats, setStats] = useState({ totalLoss: 0, expiringCount: 0, pendingBLCount: 0 });
   const [selectedAire, setSelectedAire] = useState<string | null>(null);
@@ -25,24 +33,44 @@ export default function Dashboard() {
   const [showBLList, setShowBLList] = useState(false);
   const [pendingGroups, setPendingGroups] = useState<any[]>([]);
 
-  const runCoreLogic = async (aireId: string) => {
+  const runCoreLogic = async (aireId: string, location: AireLocation = {}) => {
     setLoading(true);
     try {
       const dateLimiteStr = new Date(Date.now() + 3 * 86400000).toISOString().split('T')[0];
+      const wq = weatherQueryParams(location);
+      const forecastQs = wq ? `?forecast=true&${wq}` : '?forecast=true';
+
+      const weatherPromise = (() => {
+        if (location.lat != null && location.lon != null) {
+          return getWeatherData(location.lat, location.lon, location.city || undefined);
+        }
+        const city = location.city || location.name;
+        if (city) {
+          return getWeatherData(undefined, undefined, city);
+        }
+        return Promise.resolve({
+          temp: 15,
+          condition: 'Clear',
+          description: 'ciel dégagé',
+          city: '',
+        });
+      })();
 
       // PARALLÉLISER TOUS LES APPELS INITIAUX
       const [weatherData, vacancesActive, wasteRes, expiringRes, pendingRes, productsRes, forecastRes] = await Promise.all([
-        getWeatherData(), // Météo actuelle
-        checkVacancesStatus(), // Vacances
+        weatherPromise,
+        checkVacancesStatus(),
         supabase.from('waste_logs').select('cost_loss').eq('aire_id', aireId),
         supabase.from('product_stocks').select('*, products(name)').eq('aire_id', aireId).lte('expiry_date', dateLimiteStr).gt('quantity', 0),
         supabase.from('pending_deliveries').select('*').eq('aire_id', aireId).eq('status', 'pending'),
         supabase.from('products').select('*').eq('aire_id', aireId),
-        fetch("/api/weather?forecast=true").then(r => r.json()) // Prévisions météo en parallèle
+        fetch(`/api/weather${forecastQs}`).then((r) => r.json()),
       ]);
 
-      // Récupérer les données trafic (actuel + prévisions sur 7 jours)
-      const trafficRes = await fetch(`/api/traffic?city=${encodeURIComponent(weatherData.city || 'Capendu')}&forecast=true`)
+      const trafficCity = aireDisplayLabel(location) || weatherData.city || location.city || '';
+      const trafficRes = await fetch(
+        `/api/traffic?city=${encodeURIComponent(trafficCity)}&forecast=true`
+      )
         .then(r => r.json())
         .catch(() => ({ 
           current: { trafficLevel: 'normal', trafficScore: 50, impactAire: 'normal', congestion: '' },
@@ -52,8 +80,10 @@ export default function Dashboard() {
       const trafficData = trafficRes.current || trafficRes; // Compatibilité avec l'ancien format
       const trafficForecast = trafficRes.forecast || [];
 
-      // Afficher la météo IMMÉDIATEMENT (sans attendre le verdict)
-      setWeather(weatherData);
+      setWeather({
+        ...weatherData,
+        city: aireDisplayLabel(location) || weatherData.city,
+      });
   
       const totalLoss = (wasteRes.data || []).reduce((acc, curr) => acc + (Number(curr.cost_loss) || 0), 0);
       
@@ -134,8 +164,26 @@ export default function Dashboard() {
     async function init() {
       const { data: { user } } = await supabase.auth.getUser();
       if (!user) return router.push('/login');
-      const { data: profile } = await supabase.from('profiles').select('aire_id').eq('id', user.id).single();
-      if (profile) { setSelectedAire(profile.aire_id); runCoreLogic(profile.aire_id); }
+      const { data: profile } = await supabase
+        .from('profiles')
+        .select('aire_id, aires(id, name, city, latitude, longitude)')
+        .eq('id', user.id)
+        .single();
+
+      if (profile?.aire_id) {
+        const location = parseAireCoords(
+          profile.aires as {
+            latitude?: number | null;
+            longitude?: number | null;
+            city?: string | null;
+            name?: string | null;
+          } | null
+        );
+        setAireLabel(aireDisplayLabel(location));
+        setAireLocation(location);
+        setSelectedAire(profile.aire_id);
+        runCoreLogic(profile.aire_id, location);
+      }
     }
     init();
   }, [router]);
@@ -147,11 +195,13 @@ export default function Dashboard() {
       <header className="flex justify-between items-start pt-4">
         <div>
           <h1 className="text-2xl font-black uppercase tracking-tighter italic text-white">
-            OptiRoute<span className="text-orange-500">IA</span>
+            Régi<span className="text-orange-500">Aire</span>
           </h1>
           <div className="flex items-center gap-1.5 mt-2 bg-slate-900/50 px-2 py-1 rounded-lg border border-slate-800">
             <Navigation size={10} className="text-orange-500" />
-            <span className="text-[9px] font-black uppercase text-slate-400 italic">{weather.city}</span>
+            <span className="text-[9px] font-black uppercase text-slate-400 italic">
+              {aireLabel || weather.city || '—'}
+            </span>
             <RefreshCw size={8} className={`ml-1 text-slate-600 ${loading ? 'animate-spin' : ''}`} />
           </div>
         </div>
@@ -279,7 +329,10 @@ export default function Dashboard() {
       {/* BOUTON IMPORT DOCUMENT */}
       <section className="space-y-4">
         <div className="px-2 font-black italic uppercase text-[10px] text-slate-500 tracking-widest">Documents & Arrivages</div>
-        <IAUpload aireId={selectedAire!} onComplete={() => runCoreLogic(selectedAire!)} />
+        <IAUpload
+          aireId={selectedAire!}
+          onComplete={() => selectedAire && runCoreLogic(selectedAire, aireLocation)}
+        />
       </section>
 
       {/* KPI GRID (Rétablie ici) */}

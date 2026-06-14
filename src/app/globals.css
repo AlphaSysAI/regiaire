@@ -2,7 +2,7 @@
 
 @theme inline {
   --font-sans: var(--font-inter); /* On utilise Inter pour un look pro */
-  --color-brand: #f97316;         /* Orange OptiRoute */
+  --color-brand: #f97316;         /* Orange RégiAire */
 }
 
 :root {
@@ -20,7 +20,7 @@ body {
   min-height: 100vh;
 }
 
-/* --- CUSTOMISATION DU SCANNER OPTIROUTEIA --- */
+/* --- CUSTOMISATION DU SCANNER RÉGIAIRE --- */
 
 /* Conteneur principal du scanner */
 #reader {

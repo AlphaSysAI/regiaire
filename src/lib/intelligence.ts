@@ -19,28 +19,36 @@ export async function checkVacancesStatus(): Promise<boolean> {
      2. API MÉTÉO
   ========================= */
   
-  export async function getWeatherData(lat?: number, lon?: number) {
-    const OWM_KEY = process.env.NEXT_PUBLIC_OWM_API_KEY; // clé publique pour client
-    const url = lat && lon
-      ? `https://api.openweathermap.org/data/2.5/weather?lat=${lat}&lon=${lon}&units=metric&appid=${OWM_KEY}&lang=fr`
-      : `https://api.openweathermap.org/data/2.5/weather?q=Capendu,fr&units=metric&appid=${OWM_KEY}&lang=fr`;
-  
+  export async function getWeatherData(
+    lat?: number,
+    lon?: number,
+    city?: string
+  ) {
     try {
-      const res = await fetch(url);
+      const params = new URLSearchParams();
+      if (lat != null && lon != null) {
+        params.set('lat', String(lat));
+        params.set('lon', String(lon));
+      } else if (city) {
+        params.set('city', city);
+      }
+      const qs = params.toString();
+      const res = await fetch(`/api/weather${qs ? `?${qs}` : ''}`);
       const data = await res.json();
-  
+      if (data.error) throw new Error(data.error);
+
       return {
-        temp: data.main.temp,
-        condition: data.weather[0].main,
-        description: data.weather[0].description,
-        city: data.name,
+        temp: data.temp ?? 15,
+        condition: data.condition ?? 'Clear',
+        description: data.description ?? '',
+        city: data.city ?? city ?? '',
       };
     } catch {
       return {
         temp: 15,
-        condition: "Clear",
-        description: "ciel dégagé",
-        city: "Capendu",
+        condition: 'Clear',
+        description: 'ciel dégagé',
+        city: city ?? '',
       };
     }
   }

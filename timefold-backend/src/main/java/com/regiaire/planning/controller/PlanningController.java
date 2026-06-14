@@ -1,7 +1,7 @@
-package com.optiroute.planning.controller;
+package com.regiaire.planning.controller;
 
-import com.optiroute.planning.domain.*;
-import com.optiroute.planning.service.PlanningService;
+import com.regiaire.planning.domain.*;
+import com.regiaire.planning.service.PlanningService;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;

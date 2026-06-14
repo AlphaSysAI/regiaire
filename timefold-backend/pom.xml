@@ -12,10 +12,10 @@
         <relativePath/>
     </parent>
     
-    <groupId>com.optiroute</groupId>
+    <groupId>com.regiaire</groupId>
     <artifactId>timefold-backend</artifactId>
     <version>1.0.0</version>
-    <name>OptiRoute Timefold Backend</name>
+    <name>RégiAire Timefold Backend</name>
     <description>Backend Timefold pour optimisation de planning</description>
     
     <properties>

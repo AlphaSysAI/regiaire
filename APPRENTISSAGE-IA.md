@@ -1,4 +1,4 @@
-# 🧠 Système d'Apprentissage IA - OptiRouteIA
+# 🧠 Système d'Apprentissage IA - RégiAire
 
 ## 📋 Vue d'ensemble
 

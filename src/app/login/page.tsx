@@ -1,6 +1,7 @@
 'use client';
 
 import { useState } from 'react';
+import Link from 'next/link';
 import { supabase } from '@/lib/supabase';
 import { Lock, Mail, Loader2, ChevronRight } from 'lucide-react';
 
@@ -28,9 +29,11 @@ export default function LoginPage() {
       }
 
       if (data?.session) {
-        // Cette ligne est CRUCIALE pour stopper la boucle infinie :
-        // Elle force le navigateur à envoyer les nouveaux cookies au serveur.
-        window.location.href = '/';
+        const params = new URLSearchParams(window.location.search);
+        const next = params.get('next');
+        const destination =
+          next && next.startsWith('/') && !next.startsWith('//') ? next : '/';
+        window.location.href = destination;
       }
     } catch (err) {
       setError("Une erreur est survenue");
@@ -44,7 +47,7 @@ export default function LoginPage() {
         
         <div className="text-center">
           <h1 className="text-4xl font-black tracking-tighter uppercase italic">
-            OptiRoute<span className="text-orange-500 italic">IA</span>
+            Régi<span className="text-orange-500 italic">Aire</span>
           </h1>
           <p className="text-[10px] text-slate-500 font-bold uppercase tracking-[0.4em] mt-2 italic">
             Accès Sécurisé
@@ -96,6 +99,13 @@ export default function LoginPage() {
             )}
           </button>
         </form>
+
+        <p className="text-center text-slate-500 text-[10px] font-bold uppercase">
+          Pas encore de compte ?{' '}
+          <Link href="/auth" className="text-orange-500 hover:text-orange-400">
+            Créer son compte
+          </Link>
+        </p>
 
         <p className="text-center text-slate-600 text-[9px] font-bold uppercase tracking-widest">
           Propulsé par OrbitAI Technology

@@ -153,7 +153,7 @@ export default function EquipePage() {
       {/* Header */}
       <div className="flex justify-between items-center mb-6 pt-2">
         <div>
-          <h1 className="text-2xl font-black uppercase tracking-tighter italic">Équipe <span className="text-orange-500">Opti</span></h1>
+          <h1 className="text-2xl font-black uppercase tracking-tighter italic">Équipe <span className="text-orange-500">RégiAire</span></h1>
           <div className="flex items-center gap-1.5 mt-1">
              <MapPin size={10} className="text-orange-500" />
              <span className="text-[9px] font-black uppercase text-slate-500 tracking-widest">{userProfile?.aires?.name}</span>

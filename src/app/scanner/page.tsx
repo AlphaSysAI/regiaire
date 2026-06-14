@@ -196,7 +196,7 @@ export default function ScannerPage() {
     <div className="min-h-screen p-4 pb-24 text-white bg-slate-950 font-sans">
       <div className="flex items-center gap-3 mb-6">
         <div className="bg-orange-500 p-2 rounded-lg shadow-lg"><ScanLine size={20}/></div>
-        <h1 className="text-xl font-black uppercase tracking-tight italic text-white">Scanner <span className="text-orange-500">Opti</span></h1>
+        <h1 className="text-xl font-black uppercase tracking-tight italic text-white">Scanner <span className="text-orange-500">RégiAire</span></h1>
       </div>
 
       {!scanResult ? (

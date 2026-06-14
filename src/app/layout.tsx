@@ -14,7 +14,7 @@ import {
 const inter = Inter({ subsets: ["latin"] });
 
 export const metadata: Metadata = {
-  title: "OptiRouteIA",
+  title: "RégiAire",
   description: "Optimisation et cohésion pour aires d'autoroute",
 };
 

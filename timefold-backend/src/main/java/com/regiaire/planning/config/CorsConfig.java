@@ -1,4 +1,4 @@
-package com.optiroute.planning.config;
+package com.regiaire.planning.config;
 
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;

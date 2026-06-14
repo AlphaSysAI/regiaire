@@ -1,4 +1,4 @@
-package com.optiroute.planning.domain;
+package com.regiaire.planning.domain;
 
 import ai.timefold.solver.core.api.domain.solution.PlanningEntityCollectionProperty;
 import ai.timefold.solver.core.api.domain.solution.PlanningScore;
