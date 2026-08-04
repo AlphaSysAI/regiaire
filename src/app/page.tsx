@@ -3,9 +3,9 @@
 import { useEffect, useState } from 'react';
 import { supabase } from '@/lib/supabase';
 import { 
-  Sun, TrendingUp, CloudRain, Sparkles, Navigation, 
-  RefreshCw, AlertTriangle, ChevronRight, Truck, 
-  ScanLine, ClipboardCheck, X, FileText, ThumbsUp, ThumbsDown
+  Sun, TrendingUp, CloudRain, Sparkles, Navigation,
+  RefreshCw, AlertTriangle, ChevronRight, Truck,
+  ScanLine, ClipboardCheck, X, FileText, ThumbsUp, ThumbsDown, BarChart3
 } from "lucide-react";
 import { useRouter } from 'next/navigation';
 import IAUpload from '@/components/IAUpload'; 
@@ -214,9 +214,18 @@ export default function Dashboard() {
       {/* VERDICT IA CARD */}
       <div className="bg-orange-600 rounded-[3rem] p-8 shadow-2xl relative overflow-hidden border-t border-white/20">
         <div className="relative z-10">
-          <div className="flex items-center gap-2 mb-4">
-             <div className="bg-white/20 p-2 rounded-xl backdrop-blur-md"><Sparkles size={18} className="text-white animate-pulse" /></div>
-             <span className="text-[10px] font-black uppercase tracking-[0.2em] text-white/90 italic">Verdict IA</span>
+          <div className="flex items-center justify-between mb-4">
+             <div className="flex items-center gap-2">
+               <div className="bg-white/20 p-2 rounded-xl backdrop-blur-md"><Sparkles size={18} className="text-white animate-pulse" /></div>
+               <span className="text-[10px] font-black uppercase tracking-[0.2em] text-white/90 italic">Verdict IA</span>
+             </div>
+             <button
+               onClick={() => router.push('/verdict')}
+               className="flex items-center gap-1.5 bg-white/20 hover:bg-white/30 px-3 py-2 rounded-xl backdrop-blur-md transition-all active:scale-95"
+             >
+               <BarChart3 size={13} className="text-white" />
+               <span className="text-[9px] font-black uppercase tracking-widest text-white italic">Détail</span>
+             </button>
           </div>
           <h3 className="text-[15px] font-bold text-white leading-relaxed mb-4 italic">
             {loading ? "Calcul en cours..." : `"${aiVerdict}"`}
