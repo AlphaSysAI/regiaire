@@ -203,10 +203,11 @@ export default function AntiGaspi() {
                     type="button"
                     onClick={() => handleWaste(item)}
                     disabled={!!actionLoading}
-                    className="inline-flex h-12 items-center justify-center gap-2 rounded-xl border border-rose-500/30 bg-rose-500/10 px-4 text-xs font-semibold uppercase tracking-wide text-rose-300 transition hover:bg-rose-500/20 disabled:opacity-40"
+                    title="Retirer (casse / gaspillage)"
+                    aria-label="Retirer (casse / gaspillage)"
+                    className="inline-flex h-12 w-12 shrink-0 items-center justify-center rounded-xl border border-rose-500/30 bg-rose-500/10 text-rose-300 transition hover:bg-rose-500/20 disabled:opacity-40"
                   >
-                    <Trash2 size={14} />
-                    Retirer
+                    <Trash2 size={16} />
                   </button>
                 </div>
               </Panel>

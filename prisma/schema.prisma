@@ -1,0 +1,66 @@
+// OrbitAire — modèle de référence (non branché au runtime).
+// Persistence réelle : supabase-purchase-orders.sql (Supabase / Postgres).
+// Ce fichier documente le contrat de données demandé pour les commandes fournisseurs.
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+enum OrderStatus {
+  DRAFT
+  VALIDATED
+  SENT
+  RECEIVED
+  CANCELLED
+}
+
+model PurchaseOrder {
+  id               String              @id @default(uuid()) @db.Uuid
+  stationId        String              @map("station_id") @db.Uuid
+  orderNumber      String              @unique @map("order_number")
+  status           OrderStatus         @default(DRAFT)
+  category         String?
+  planDate         DateTime            @map("plan_date") @db.Date
+  totalEstimatedHT Float               @default(0) @map("total_estimated_ht")
+  validatedAt      DateTime?           @map("validated_at")
+  sentAt           DateTime?           @map("sent_at")
+  receivedAt       DateTime?           @map("received_at")
+  deliveryDate     DateTime?           @map("delivery_date") @db.Date
+  notes            String?
+  exportPayload    Json?               @map("export_payload")
+  items            PurchaseOrderItem[]
+  createdAt        DateTime            @default(now()) @map("created_at")
+  updatedAt        DateTime            @updatedAt @map("updated_at")
+
+  @@index([stationId, status])
+  @@map("purchase_orders")
+}
+
+model PurchaseOrderItem {
+  id                   String        @id @default(uuid()) @db.Uuid
+  orderId              String        @map("order_id") @db.Uuid
+  order                PurchaseOrder @relation(fields: [orderId], references: [id], onDelete: Cascade)
+  productId            String        @map("product_id") @db.Uuid
+  productName          String        @map("product_name")
+  category             String
+  ean                  String?
+  currentStock         Float         @map("current_stock")
+  suggestedQty         Float         @map("suggested_qty")
+  adjustedQty          Float         @map("adjusted_qty")
+  unitPriceHT          Float         @default(0) @map("unit_price_ht")
+  isValidated          Boolean       @default(false) @map("is_validated")
+  urgencyLevel         String        @map("urgency_level")
+  reasonCode           String?       @map("reason_code")
+  estimatedSalesJ3     Float?        @map("estimated_sales_j3")
+  confidencePct        Float?        @map("confidence_pct")
+  justificationSummary String?       @map("justification_summary")
+
+  @@unique([orderId, productId])
+  @@index([orderId, productId])
+  @@map("purchase_order_items")
+}

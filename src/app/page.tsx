@@ -21,24 +21,21 @@ import {
   CheckCircle2,
   CircleAlert,
   ShieldAlert,
-  Download,
   MapPin,
   ListChecks,
   Sparkles,
 } from 'lucide-react';
 import { useRouter } from 'next/navigation';
 import IAUpload from '@/components/IAUpload';
+import OrderMatrix from '@/components/orbitaire/OrderMatrix';
+import { IconButton } from '@/components/ui/IconButton';
 import { checkVacancesStatus, getWeatherData } from '@/lib/intelligence';
 import {
   parseAireCoords,
   aireDisplayLabel,
   type AireLocation,
 } from '@/lib/aire-location';
-import type {
-  PredictiveEngineOutput,
-  OrderRecommendation,
-  RiskStatus,
-} from '@/services/orbitaire/predictiveEngine';
+import type { PredictiveEngineOutput } from '@/services/orbitaire/predictiveEngine';
 import {
   Area,
   CartesianGrid,
@@ -53,18 +50,6 @@ import {
 
 type AireOption = { id: string; name: string; city: string | null };
 type ChartHorizon = 'daily' | 'hourly' | 'monthly';
-
-function riskLabel(status: RiskStatus): string {
-  if (status === 'rupture_imminente') return 'Rupture imminente';
-  if (status === 'vigilance') return 'Vigilance';
-  return 'Normal';
-}
-
-function riskClasses(status: RiskStatus): string {
-  if (status === 'rupture_imminente') return 'bg-rose-500/15 text-rose-300 border-rose-500/40';
-  if (status === 'vigilance') return 'bg-amber-500/15 text-amber-300 border-amber-500/40';
-  return 'bg-emerald-500/15 text-emerald-300 border-emerald-500/40';
-}
 
 function formatShortDate(iso: string): string {
   const [, m, d] = iso.split('-');
@@ -90,8 +75,6 @@ export default function Dashboard() {
   } | null>(null);
   const [predictError, setPredictError] = useState<string | null>(null);
   const [chartHorizon, setChartHorizon] = useState<ChartHorizon>('daily');
-  const [adjustedQty, setAdjustedQty] = useState<Record<string, number>>({});
-  const [validatedIds, setValidatedIds] = useState<Set<string>>(new Set());
   const [showBLList, setShowBLList] = useState(false);
   const [pendingGroups, setPendingGroups] = useState<
     Array<{ id: string; count: number; time: string; date: string }>
@@ -122,12 +105,6 @@ export default function Dashboard() {
       const revenueData = await revenueRes.json().catch(() => null);
       startTransition(() => {
         setPrediction(data.prediction as PredictiveEngineOutput);
-        const defaults: Record<string, number> = {};
-        for (const line of data.prediction.recommendations as OrderRecommendation[]) {
-          defaults[line.productId] = line.suggestedOrderQty;
-        }
-        setAdjustedQty(defaults);
-        setValidatedIds(new Set());
 
         if (revenueData?.success && revenueData.prediction?.days?.[0]) {
           const day0 = revenueData.prediction.days[0];
@@ -334,24 +311,6 @@ export default function Dashboard() {
     });
   })();
 
-  const exportOrders = () => {
-    if (!prediction) return;
-    const lines = prediction.recommendations
-      .filter((r) => (adjustedQty[r.productId] ?? r.suggestedOrderQty) > 0)
-      .map((r) => {
-        const qty = adjustedQty[r.productId] ?? r.suggestedOrderQty;
-        return `${r.ean || r.productId};${r.name};${r.category};${qty};${r.riskStatus}`;
-      });
-    const csv = ['ean;nom;categorie;qte;risque', ...lines].join('\n');
-    const blob = new Blob([csv], { type: 'text/csv;charset=utf-8' });
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement('a');
-    a.href = url;
-    a.download = `orbitaire-commande-${prediction.planDate}.csv`;
-    a.click();
-    URL.revokeObjectURL(url);
-  };
-
   const kpis = prediction?.kpis;
   const alertTone =
     kpis?.ruptureAlertLevel === 'red'
@@ -456,14 +415,19 @@ export default function Dashboard() {
                 <Sun size={14} className="text-amber-400" />
               )}
               <span className="text-sm font-bold">{Math.round(weather.temp)}°C</span>
-              <button
-                type="button"
+              <IconButton
+                label="Rafraîchir"
+                variant="neutral"
+                size="sm"
+                disabled={loading || predictLoading}
                 onClick={() => selectedAire && runCoreLogic(selectedAire, aireLocation)}
-                className="ml-1 text-slate-500 hover:text-cyan-300"
-                aria-label="Rafraîchir"
+                className="ml-1"
               >
-                <RefreshCw size={14} className={loading || predictLoading ? 'animate-spin' : ''} />
-              </button>
+                <RefreshCw
+                  size={14}
+                  className={loading || predictLoading ? 'animate-spin' : ''}
+                />
+              </IconButton>
             </div>
           </div>
         </div>
@@ -675,119 +639,12 @@ export default function Dashboard() {
           </div>
         </aside>
 
-        {/* ORDER MATRIX */}
-        <section className="lg:col-span-12 rounded-2xl border border-slate-800 bg-slate-900/60 p-4">
-          <div className="mb-3 flex flex-wrap items-center justify-between gap-2">
-            <div>
-              <h2
-                className="text-base font-semibold"
-                style={{ fontFamily: 'var(--font-display), system-ui' }}
-              >
-                Matrice de commande optimisée
-              </h2>
-              <p className="text-xs text-slate-400">
-                Quantités OrbitAire · ajustement 1 clic · export CSV
-              </p>
-            </div>
-            <button
-              type="button"
-              onClick={exportOrders}
-              disabled={!prediction}
-              className="inline-flex items-center gap-2 rounded-xl border border-cyan-500/40 bg-cyan-500/10 px-3 py-2 text-xs font-semibold text-cyan-300 hover:bg-cyan-500/20 disabled:opacity-40"
-            >
-              <Download size={14} />
-              Exporter / transmettre
-            </button>
-          </div>
-
-          <div className="overflow-x-auto rounded-xl border border-slate-800">
-            <table className="min-w-full text-left text-xs">
-              <thead className="bg-slate-950 text-[10px] uppercase tracking-wider text-slate-500">
-                <tr>
-                  <th className="px-3 py-2 font-semibold">Référence</th>
-                  <th className="px-3 py-2 font-semibold">Catégorie</th>
-                  <th className="px-3 py-2 font-semibold">Stock</th>
-                  <th className="px-3 py-2 font-semibold">Est. J+3</th>
-                  <th className="px-3 py-2 font-semibold">Commande</th>
-                  <th className="px-3 py-2 font-semibold">Risque</th>
-                  <th className="px-3 py-2 font-semibold">Confiance</th>
-                  <th className="px-3 py-2 font-semibold">Action</th>
-                </tr>
-              </thead>
-              <tbody>
-                {(prediction?.recommendations ?? []).slice(0, 25).map((row) => {
-                  const qty = adjustedQty[row.productId] ?? row.suggestedOrderQty;
-                  const validated = validatedIds.has(row.productId);
-                  return (
-                    <tr
-                      key={row.productId}
-                      className="border-t border-slate-800/80 hover:bg-slate-950/50"
-                    >
-                      <td className="px-3 py-2">
-                        <p className="font-medium text-slate-100">{row.name}</p>
-                        <p className="text-[10px] text-slate-500 line-clamp-2">
-                          {row.justification.summary}
-                        </p>
-                        {row.bottleneck && (
-                          <p className="mt-0.5 text-[10px] text-amber-400">{row.bottleneck}</p>
-                        )}
-                      </td>
-                      <td className="px-3 py-2 text-slate-400">{row.category}</td>
-                      <td className="px-3 py-2 tabular-nums">{row.currentStock}</td>
-                      <td className="px-3 py-2 tabular-nums">{row.estimatedSalesJ3}</td>
-                      <td className="px-3 py-2">
-                        <input
-                          type="number"
-                          min={0}
-                          value={qty}
-                          onChange={(e) =>
-                            setAdjustedQty((prev) => ({
-                              ...prev,
-                              [row.productId]: Math.max(0, Number(e.target.value) || 0),
-                            }))
-                          }
-                          className="w-16 rounded-lg border border-slate-700 bg-slate-950 px-2 py-1 tabular-nums outline-none focus:border-cyan-500"
-                        />
-                      </td>
-                      <td className="px-3 py-2">
-                        <span
-                          className={`inline-flex rounded-full border px-2 py-0.5 text-[10px] font-semibold ${riskClasses(row.riskStatus)}`}
-                        >
-                          {riskLabel(row.riskStatus)}
-                        </span>
-                      </td>
-                      <td className="px-3 py-2 tabular-nums text-slate-400">
-                        {row.confidencePct}%
-                      </td>
-                      <td className="px-3 py-2">
-                        <button
-                          type="button"
-                          onClick={() =>
-                            setValidatedIds((prev) => new Set(prev).add(row.productId))
-                          }
-                          className={`rounded-lg px-2 py-1 text-[10px] font-bold uppercase tracking-wide ${
-                            validated
-                              ? 'bg-emerald-500/20 text-emerald-300'
-                              : 'bg-cyan-500/15 text-cyan-300 hover:bg-cyan-500/25'
-                          }`}
-                        >
-                          {validated ? 'Validé' : 'Valider'}
-                        </button>
-                      </td>
-                    </tr>
-                  );
-                })}
-                {!prediction && (
-                  <tr>
-                    <td colSpan={8} className="px-3 py-8 text-center text-slate-500">
-                      {predictLoading ? 'Génération des recommandations…' : 'Aucune donnée'}
-                    </td>
-                  </tr>
-                )}
-              </tbody>
-            </table>
-          </div>
-        </section>
+        <OrderMatrix
+          stationId={selectedAire}
+          planDate={prediction?.planDate ?? null}
+          recommendations={prediction?.recommendations ?? []}
+          predictLoading={predictLoading}
+        />
 
         {/* OPS SHORTCUTS */}
         <section className="lg:col-span-12 grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
