@@ -4,6 +4,7 @@ import { useState } from 'react';
 import Link from 'next/link';
 import { supabase } from '@/lib/supabase';
 import { Lock, Mail, Loader2, ChevronRight } from 'lucide-react';
+import { AuthShell, AuthBrand, Panel, PrimaryButton } from '@/components/ui/orbit';
 
 export default function LoginPage() {
   const [email, setEmail] = useState('');
@@ -42,21 +43,13 @@ export default function LoginPage() {
   };
 
   return (
-    <div className="min-h-screen bg-slate-950 flex flex-col items-center justify-center p-6 text-white font-sans">
-      <div className="w-full max-w-sm space-y-8 animate-in fade-in zoom-in duration-500">
-        
-        <div className="text-center">
-          <h1 className="text-4xl font-black tracking-tighter uppercase italic">
-            Orbit<span className="text-cyan-400">Aire</span>
-          </h1>
-          <p className="text-[10px] text-slate-500 font-semibold uppercase tracking-[0.28em] mt-2">
-            Intelligence opérationnelle autoroutière
-          </p>
-        </div>
+    <AuthShell>
+      <AuthBrand />
 
-        <form onSubmit={handleLogin} className="bg-slate-900 border border-slate-800 p-8 rounded-[3rem] shadow-2xl space-y-6">
+      <Panel className="p-8 space-y-6">
+        <form onSubmit={handleLogin} className="space-y-6">
           {error && (
-            <div className="bg-red-500/10 border border-red-500/20 text-red-500 text-[10px] font-black uppercase p-3 rounded-xl text-center">
+            <div className="bg-red-500/10 border border-red-500/20 text-red-400 text-xs font-medium p-3 rounded-xl text-center">
               {error}
             </div>
           )}
@@ -64,53 +57,51 @@ export default function LoginPage() {
           <div className="space-y-4">
             <div className="relative">
               <Mail className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-600" size={18} />
-              <input 
-                type="email" 
+              <input
+                type="email"
                 placeholder="Email Pro"
                 value={email}
                 onChange={(e) => setEmail(e.target.value)}
                 required
-                className="w-full bg-slate-950 border border-slate-800 rounded-2xl p-4 pl-12 text-sm outline-none focus:border-orange-500 text-white shadow-inner"
+                className="w-full bg-slate-950 border border-slate-800 rounded-2xl p-4 pl-12 text-sm outline-none focus:border-cyan-400 focus:ring-1 focus:ring-cyan-400/40 text-white shadow-inner"
               />
             </div>
 
             <div className="relative">
               <Lock className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-600" size={18} />
-              <input 
-                type="password" 
+              <input
+                type="password"
                 placeholder="Mot de passe"
                 value={password}
                 onChange={(e) => setPassword(e.target.value)}
                 required
-                className="w-full bg-slate-950 border border-slate-800 rounded-2xl p-4 pl-12 text-sm outline-none focus:border-orange-500 text-white shadow-inner"
+                className="w-full bg-slate-950 border border-slate-800 rounded-2xl p-4 pl-12 text-sm outline-none focus:border-cyan-400 focus:ring-1 focus:ring-cyan-400/40 text-white shadow-inner"
               />
             </div>
           </div>
 
-          <button 
-            type="submit" 
-            disabled={loading}
-            className="w-full bg-white text-slate-950 h-14 rounded-2xl font-black uppercase text-xs flex items-center justify-center gap-2 shadow-lg active:scale-95 transition-all"
-          >
+          <PrimaryButton type="submit" disabled={loading} className="w-full h-14 text-sm">
             {loading ? (
-              <Loader2 className="animate-spin text-orange-500" size={18} />
+              <Loader2 className="animate-spin text-cyan-400" size={18} />
             ) : (
-              <>Se connecter <ChevronRight size={16} /></>
+              <>
+                Se connecter <ChevronRight size={16} />
+              </>
             )}
-          </button>
+          </PrimaryButton>
         </form>
+      </Panel>
 
-        <p className="text-center text-slate-500 text-[10px] font-bold uppercase">
-          Pas encore de compte ?{' '}
-          <Link href="/auth" className="text-orange-500 hover:text-orange-400">
-            Créer son compte
-          </Link>
-        </p>
+      <p className="text-center text-slate-500 text-[10px] font-medium">
+        Pas encore de compte ?{' '}
+        <Link href="/auth" className="text-cyan-400 hover:text-cyan-300">
+          Créer son compte
+        </Link>
+      </p>
 
-        <p className="text-center text-slate-600 text-[9px] font-bold uppercase tracking-widest">
-          Propulsé par OrbitAI Technology
-        </p>
-      </div>
-    </div>
+      <p className="text-center text-slate-600 text-[9px] font-medium tracking-widest uppercase">
+        Propulsé par OrbitAI Technology
+      </p>
+    </AuthShell>
   );
 }

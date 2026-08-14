@@ -4,8 +4,8 @@ import { useEffect, useState } from 'react';
 import { supabase } from '@/lib/supabase';
 import { useRouter } from 'next/navigation';
 import {
-  ArrowLeft, PackagePlus, Navigation, RefreshCw, AlertTriangle,
-  TrendingUp, Info, CalendarClock, Boxes,
+  PackagePlus, RefreshCw, AlertTriangle,
+  TrendingUp, Info, CalendarClock,
 } from 'lucide-react';
 import {
   parseAireCoords, aireDisplayLabel, type AireLocation,
@@ -14,6 +14,14 @@ import {
   computeReplenishmentPlan, type ReplenishmentPlan, type ReplenishmentLine,
 } from '@/lib/reappro/compute-plan';
 import { todayIso } from '@/lib/reappro/iso-dates';
+import {
+  PageShell,
+  PageHeader,
+  PageBody,
+  Panel,
+  PanelTitle,
+  KpiTile,
+} from '@/components/ui/orbit';
 
 function daysUntil(dateIso: string): number {
   const today = new Date(todayIso() + 'T00:00:00Z').getTime();
@@ -24,7 +32,7 @@ function daysUntil(dateIso: string): number {
 function UrgencyBadge({ orderByDate }: { orderByDate: string | null }) {
   if (!orderByDate) {
     return (
-      <span className="text-[8px] font-black uppercase px-2 py-1 rounded-lg bg-slate-800 text-slate-400">
+      <span className="rounded-lg bg-slate-800 px-2 py-1 text-[9px] font-semibold uppercase tracking-wider text-slate-400">
         Pas d&apos;urgence
       </span>
     );
@@ -33,51 +41,71 @@ function UrgencyBadge({ orderByDate }: { orderByDate: string | null }) {
   const label =
     delta <= 0 ? "À commander aujourd'hui" : delta === 1 ? 'À commander demain' : `À commander sous ${delta} j`;
   const color =
-    delta <= 0 ? 'bg-red-600 text-white' : delta <= 2 ? 'bg-orange-600 text-white' : 'bg-slate-800 text-slate-300';
-  return <span className={`text-[8px] font-black uppercase px-2 py-1 rounded-lg ${color}`}>{label}</span>;
+    delta <= 0
+      ? 'bg-rose-600 text-white'
+      : delta <= 2
+        ? 'bg-amber-500/80 text-white'
+        : 'bg-slate-800 text-slate-300';
+  return (
+    <span className={`rounded-lg px-2 py-1 text-[9px] font-semibold uppercase tracking-wider ${color}`}>
+      {label}
+    </span>
+  );
 }
 
 function ReplenishmentCard({ line }: { line: ReplenishmentLine }) {
   return (
-    <div className="bg-slate-900 rounded-[2.2rem] p-6 border border-slate-800 shadow-lg space-y-4">
+    <Panel className="space-y-4">
       <div className="flex items-start justify-between gap-3">
         <div className="min-w-0">
-          <p className="text-[9px] font-black uppercase text-orange-500 tracking-widest mb-1">{line.category}</p>
-          <h3 className="text-sm font-black uppercase italic text-white leading-tight truncate">{line.product.name}</h3>
-          <p className="text-[9px] text-slate-500 font-bold mt-1">EAN {line.product.ean}</p>
+          <p className="mb-1 text-[9px] font-semibold uppercase tracking-wider text-cyan-400">
+            {line.category}
+          </p>
+          <h3
+            className="truncate text-sm font-semibold leading-tight text-white"
+            style={{ fontFamily: 'var(--font-display), system-ui' }}
+          >
+            {line.product.name}
+          </h3>
+          <p className="mt-1 text-[10px] font-medium text-slate-500">EAN {line.product.ean}</p>
         </div>
-        <div className="text-right shrink-0">
-          <p className="text-[8px] font-black uppercase text-slate-500 italic">Suggéré</p>
-          <p className="text-2xl font-black italic text-orange-500">+{line.suggestedOrderQty}</p>
+        <div className="shrink-0 text-right">
+          <p className="text-[9px] font-semibold uppercase tracking-wider text-slate-500">Suggéré</p>
+          <p className="text-2xl font-bold tabular-nums text-cyan-400">+{line.suggestedOrderQty}</p>
         </div>
       </div>
 
       <div className="grid grid-cols-2 gap-3">
-        <div className="bg-slate-950 rounded-2xl p-3 border border-slate-800 text-center">
-          <p className="text-[8px] font-black uppercase text-slate-500 italic">Stock actuel</p>
-          <p className="text-base font-black italic text-white">{line.currentStock}</p>
+        <div className="rounded-xl border border-slate-800 bg-slate-950/60 p-3 text-center">
+          <p className="text-[9px] font-semibold uppercase tracking-wider text-slate-500">Stock actuel</p>
+          <p className="text-base font-bold tabular-nums text-white">{line.currentStock}</p>
         </div>
-        <div className="bg-slate-950 rounded-2xl p-3 border border-slate-800 text-center">
-          <p className="text-[8px] font-black uppercase text-slate-500 italic">Demande 7j</p>
-          <p className="text-base font-black italic text-white">{line.projectedDemand}</p>
+        <div className="rounded-xl border border-slate-800 bg-slate-950/60 p-3 text-center">
+          <p className="text-[9px] font-semibold uppercase tracking-wider text-slate-500">Demande 7j</p>
+          <p className="text-base font-bold tabular-nums text-white">{line.projectedDemand}</p>
         </div>
       </div>
 
       <div className="flex items-center justify-between">
         <UrgencyBadge orderByDate={line.orderByDate} />
-        <span className="text-[8px] font-bold text-slate-600 uppercase">Délai fourniss. {line.leadTimeDays}j</span>
+        <span className="text-[9px] font-medium uppercase tracking-wider text-slate-500">
+          Délai fourniss. {line.leadTimeDays}j
+        </span>
       </div>
 
       {line.reasons.length > 0 && (
-        <div className="flex flex-wrap gap-1.5 pt-3 border-t border-slate-800">
+        <div className="flex flex-wrap gap-1.5 border-t border-slate-800 pt-3">
           {line.reasons.map((r) => (
-            <span key={r} className="text-[8px] font-bold text-slate-400 bg-slate-800/70 px-2 py-1 rounded-lg">
+            <span
+              key={r}
+              className="rounded-lg bg-slate-800/70 px-2 py-1 text-[9px] font-medium text-slate-400"
+            >
               {r}
             </span>
           ))}
         </div>
       )}
-    </div>
+    </Panel>
   );
 }
 
@@ -96,7 +124,7 @@ export default function ReapproPage() {
       setPlan(result);
     } catch (err) {
       console.error(err);
-      setError("Impossible de calculer le plan de réappro pour le moment.");
+      setError('Impossible de calculer le plan de réappro pour le moment.');
     } finally {
       setLoading(false);
     }
@@ -126,110 +154,114 @@ export default function ReapproPage() {
 
   const totalSuggested = plan?.lines.reduce((sum, l) => sum + l.suggestedOrderQty, 0) ?? 0;
 
+  const refresh = () => {
+    (async () => {
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) return;
+      const { data: profile } = await supabase
+        .from('profiles')
+        .select('aire_id, aires(id, name, city, latitude, longitude)')
+        .eq('id', user.id)
+        .single();
+      if (profile?.aire_id) {
+        const location = parseAireCoords(profile.aires as {
+          latitude?: number | null; longitude?: number | null; city?: string | null; name?: string | null;
+        } | null);
+        load(profile.aire_id, location);
+      }
+    })();
+  };
+
   return (
-    <div className="p-4 space-y-6 min-h-screen bg-slate-950 text-white pb-32 font-sans">
-      {/* HEADER */}
-      <header className="flex items-center justify-between pt-4">
-        <button onClick={() => router.push('/')} className="p-3 bg-slate-900 rounded-2xl border border-slate-800 active:scale-95 transition-all">
-          <ArrowLeft size={18} className="text-slate-300" />
-        </button>
-        <div className="text-center">
-          <h1 className="text-lg font-black uppercase italic tracking-tighter">Réappro <span className="text-orange-500">IA</span></h1>
-          <div className="flex items-center gap-1.5 justify-center mt-1">
-            <Navigation size={9} className="text-orange-500" />
-            <span className="text-[9px] font-black uppercase text-slate-400 italic">{aireLabel || '—'}</span>
+    <PageShell>
+      <PageHeader
+        title="Réappro"
+        accent="IA"
+        subtitle={aireLabel || 'Plan de commande'}
+        icon={PackagePlus}
+        backHref="/"
+        actions={
+          <button
+            type="button"
+            onClick={refresh}
+            className="rounded-xl border border-slate-800 bg-slate-900/80 p-2.5 text-slate-300 transition hover:border-cyan-500/40 hover:text-cyan-300"
+          >
+            <RefreshCw size={16} className={loading ? 'animate-spin' : ''} />
+          </button>
+        }
+      />
+
+      <PageBody>
+        {loading && (
+          <div className="flex flex-col items-center justify-center gap-3 py-24">
+            <RefreshCw size={28} className="animate-spin text-cyan-400" />
+            <p className="text-xs font-medium uppercase tracking-wider text-slate-500">
+              Calcul du plan de réappro…
+            </p>
           </div>
-        </div>
-        <button
-          onClick={() => {
-            (async () => {
-              const { data: { user } } = await supabase.auth.getUser();
-              if (!user) return;
-              const { data: profile } = await supabase
-                .from('profiles')
-                .select('aire_id, aires(id, name, city, latitude, longitude)')
-                .eq('id', user.id)
-                .single();
-              if (profile?.aire_id) {
-                const location = parseAireCoords(profile.aires as {
-                  latitude?: number | null; longitude?: number | null; city?: string | null; name?: string | null;
-                } | null);
-                load(profile.aire_id, location);
-              }
-            })();
-          }}
-          className="p-3 bg-slate-900 rounded-2xl border border-slate-800 active:scale-95 transition-all"
-        >
-          <RefreshCw size={16} className={`text-slate-300 ${loading ? 'animate-spin' : ''}`} />
-        </button>
-      </header>
+        )}
 
-      {loading && (
-        <div className="flex flex-col items-center justify-center py-24 gap-3">
-          <RefreshCw size={28} className="text-orange-500 animate-spin" />
-          <p className="text-[11px] font-black uppercase italic text-slate-500">Calcul du plan de réappro…</p>
-        </div>
-      )}
+        {!loading && error && (
+          <Panel className="border-rose-500/30 bg-rose-500/10 text-center">
+            <AlertTriangle size={28} className="mx-auto mb-2 text-rose-400" />
+            <p className="text-sm font-semibold text-rose-300">{error}</p>
+          </Panel>
+        )}
 
-      {!loading && error && (
-        <div className="bg-red-500/10 border border-red-500/20 rounded-[2rem] p-6 text-center">
-          <AlertTriangle size={28} className="text-red-500 mx-auto mb-2" />
-          <p className="text-sm font-black italic text-red-400">{error}</p>
-        </div>
-      )}
-
-      {!loading && !error && plan && (
-        <>
-          {/* SYNTHÈSE */}
-          <div className="bg-gradient-to-br from-orange-600 to-orange-700 rounded-[2.5rem] p-7 shadow-2xl relative overflow-hidden border-t border-white/20">
-            <div className="relative z-10 flex items-center justify-between">
-              <div>
-                <div className="flex items-center gap-2 mb-2">
-                  <div className="bg-white/20 p-2 rounded-xl backdrop-blur-md"><PackagePlus size={16} className="text-white" /></div>
-                  <span className="text-[10px] font-black uppercase tracking-[0.2em] text-white/90 italic">Plan sur {plan.horizonDays} jours</span>
-                </div>
-                <p className="text-3xl font-black italic text-white">{plan.lines.length}</p>
-                <p className="text-[10px] font-bold text-white/80 uppercase italic">Produit{plan.lines.length > 1 ? 's' : ''} à commander</p>
+        {!loading && !error && plan && (
+          <>
+            <Panel className="border-cyan-500/30 bg-gradient-to-br from-cyan-500/15 to-slate-900/80">
+              <PanelTitle hint={`Horizon ${plan.horizonDays} jours`}>Synthèse commande</PanelTitle>
+              <div className="grid grid-cols-2 gap-3">
+                <KpiTile
+                  label="Produits à commander"
+                  value={plan.lines.length}
+                  tone="cyan"
+                />
+                <KpiTile
+                  label="Unités suggérées"
+                  value={totalSuggested}
+                  tone="default"
+                />
               </div>
-              <div className="text-right">
-                <p className="text-[9px] font-black uppercase text-white/70 italic">Unités suggérées</p>
-                <p className="text-2xl font-black italic text-white">{totalSuggested}</p>
+            </Panel>
+
+            {plan.lines.length > 0 ? (
+              <div className="space-y-3">
+                {plan.lines.map((line) => (
+                  <ReplenishmentCard key={line.product.id} line={line} />
+                ))}
               </div>
-            </div>
-            <Boxes size={140} className="absolute -right-8 -bottom-8 opacity-10 text-white rotate-6" />
-          </div>
+            ) : (
+              <Panel className="text-center">
+                <TrendingUp size={32} className="mx-auto mb-3 text-emerald-400" />
+                <p className="text-sm font-semibold text-slate-200">Aucune commande urgente</p>
+                <p className="mt-2 text-xs text-slate-500">
+                  Les stocks couvrent la demande projetée sur {plan.horizonDays} jours.
+                </p>
+              </Panel>
+            )}
 
-          {/* LIGNES */}
-          {plan.lines.length > 0 ? (
-            <div className="space-y-4">
-              {plan.lines.map((line) => (
-                <ReplenishmentCard key={line.product.id} line={line} />
-              ))}
-            </div>
-          ) : (
-            <div className="bg-slate-900 rounded-[2rem] p-8 border border-slate-800 text-center">
-              <TrendingUp size={32} className="text-green-500 mx-auto mb-3" />
-              <p className="text-sm font-black italic text-slate-300">Aucune commande urgente</p>
-              <p className="text-[11px] text-slate-500 mt-2">Les stocks couvrent la demande projetée sur {plan.horizonDays} jours.</p>
-            </div>
-          )}
+            <Panel className="flex gap-3 bg-slate-900/40">
+              <Info size={16} className="mt-0.5 shrink-0 text-slate-500" />
+              <ul className="space-y-1.5">
+                {plan.limitations.map((l) => (
+                  <li key={l} className="text-[11px] leading-relaxed text-slate-500">
+                    {l}
+                  </li>
+                ))}
+              </ul>
+            </Panel>
 
-          {/* LIMITATIONS */}
-          <div className="bg-slate-900/50 border border-slate-800 rounded-[2rem] p-5 flex gap-3">
-            <Info size={16} className="text-slate-500 shrink-0 mt-0.5" />
-            <ul className="space-y-1.5">
-              {plan.limitations.map((l) => (
-                <li key={l} className="text-[9px] text-slate-500 font-bold italic leading-relaxed">{l}</li>
-              ))}
-            </ul>
-          </div>
-
-          <div className="flex items-center justify-center gap-1.5 text-slate-600">
-            <CalendarClock size={11} />
-            <span className="text-[9px] font-black uppercase italic">Basé sur les ventes jusqu&apos;au {new Date(plan.planDate).toLocaleDateString('fr-FR')}</span>
-          </div>
-        </>
-      )}
-    </div>
+            <div className="flex items-center justify-center gap-1.5 text-slate-600">
+              <CalendarClock size={11} />
+              <span className="text-[10px] font-medium uppercase tracking-wider">
+                Basé sur les ventes jusqu&apos;au {new Date(plan.planDate).toLocaleDateString('fr-FR')}
+              </span>
+            </div>
+          </>
+        )}
+      </PageBody>
+    </PageShell>
   );
 }

@@ -2,18 +2,26 @@
 
 import { useEffect, useState, useCallback } from 'react';
 import { supabase } from '@/lib/supabase';
-import { 
-  CheckCircle2, Circle, MessageSquare, Send, Clock, Users, 
-  Loader2, Lock, Calendar as CalendarIcon, History, X, MapPin 
+import {
+  CheckCircle2, Circle, MessageSquare, Send, Users,
+  Loader2, Lock, Calendar as CalendarIcon, History, X,
 } from 'lucide-react';
 import { useRouter } from 'next/navigation';
+import {
+  PageShell,
+  PageHeader,
+  PageBody,
+  Panel,
+  PanelTitle,
+  PrimaryButton,
+  SegmentedTabs,
+} from '@/components/ui/orbit';
 
-// Fonction pour déterminer le quart selon l'heure actuelle
 const getAutomaticShift = () => {
   const hour = new Date().getHours();
-  if (hour >= 6 && hour < 14) return "Matin";
-  if (hour >= 14 && hour < 22) return "Après-midi";
-  return "Nuit";
+  if (hour >= 6 && hour < 14) return 'Matin';
+  if (hour >= 14 && hour < 22) return 'Après-midi';
+  return 'Nuit';
 };
 
 export default function EquipePage() {
@@ -21,20 +29,17 @@ export default function EquipePage() {
   const [view, setView] = useState<'checklist' | 'history'>('checklist');
   const [loading, setLoading] = useState(true);
   const [userProfile, setUserProfile] = useState<any>(null);
-  
-  // États Checklist
+
   const [tasks, setTasks] = useState<any[]>([]);
   const [activeShift, setActiveShift] = useState(getAutomaticShift());
-  const [note, setNote] = useState("");
+  const [note, setNote] = useState('');
   const [isLocked, setIsLocked] = useState(false);
   const [sendingNote, setSendingNote] = useState(false);
 
-  // États Historique
   const [historyDate, setHistoryDate] = useState(new Date().toISOString().split('T')[0]);
   const [notesHistory, setNotesHistory] = useState<any[]>([]);
   const [selectedNote, setSelectedNote] = useState<any>(null);
 
-  // 1. Initialisation Auth & Profil
   useEffect(() => {
     async function initAuth() {
       try {
@@ -53,21 +58,20 @@ export default function EquipePage() {
           setLoading(false);
         }
       } catch (error) {
-        console.error("Erreur Auth:", error);
+        console.error('Erreur Auth:', error);
         setLoading(false);
       }
     }
     initAuth();
   }, [router]);
 
-  // 2. Fonctions de chargement
   const fetchTasks = useCallback(async () => {
     if (!userProfile?.aire_id) return;
     const { data } = await supabase
-        .from('shift_tasks')
-        .select('*')
-        .eq('aire_id', userProfile.aire_id)
-        .order('category', { ascending: true });
+      .from('shift_tasks')
+      .select('*')
+      .eq('aire_id', userProfile.aire_id)
+      .order('category', { ascending: true });
     if (data) setTasks(data);
     setLoading(false);
   }, [userProfile]);
@@ -97,50 +101,53 @@ export default function EquipePage() {
     }
   }, [userProfile, activeShift, view, historyDate, fetchTasks, fetchHistory, checkLockStatus]);
 
-  // 3. Actions
   async function toggleTask(id: string, currentStatus: boolean) {
     if (isLocked || !userProfile) return;
     const { error } = await supabase
-        .from('shift_tasks')
-        .update({ 
-            is_completed: !currentStatus, 
-            completed_at: !currentStatus ? new Date().toISOString() : null,
-            completed_by: !currentStatus ? activeShift : null 
-        })
-        .eq('id', id);
-    
+      .from('shift_tasks')
+      .update({
+        is_completed: !currentStatus,
+        completed_at: !currentStatus ? new Date().toISOString() : null,
+        completed_by: !currentStatus ? activeShift : null,
+      })
+      .eq('id', id);
+
     if (!error) {
-      setTasks(tasks.map(t => t.id === id ? { ...t, is_completed: !currentStatus, completed_by: !currentStatus ? activeShift : null } : t));
+      setTasks(tasks.map((t) =>
+        t.id === id
+          ? { ...t, is_completed: !currentStatus, completed_by: !currentStatus ? activeShift : null }
+          : t
+      ));
     }
   }
 
   async function sendNoteAndCloseShift() {
     if (!note.trim() || isLocked || !userProfile) return;
 
-    const uncompletedTasks = tasks.filter(t => !t.is_completed).map(t => t.task_name);
-    const progress = Math.round((tasks.filter(t => t.is_completed).length / tasks.length) * 100);
-    
+    const uncompletedTasks = tasks.filter((t) => !t.is_completed).map((t) => t.task_name);
+    const progress = Math.round((tasks.filter((t) => t.is_completed).length / tasks.length) * 100);
+
     if (!confirm(`Clôturer le service ${activeShift} à ${progress}% ?`)) return;
 
     setSendingNote(true);
-    const { error: noteError } = await supabase.from('shift_notes').insert([{ 
-      content: note, 
+    const { error: noteError } = await supabase.from('shift_notes').insert([{
+      content: note,
       created_by: activeShift,
       completion_rate: progress,
       missing_tasks: uncompletedTasks,
-      aire_id: userProfile.aire_id 
+      aire_id: userProfile.aire_id,
     }]);
 
     if (!noteError) {
       await supabase.from('shift_tasks')
         .update({ is_completed: false, completed_by: null, completed_at: null })
         .eq('aire_id', userProfile.aire_id);
-        
+
       localStorage.setItem(`lock_${activeShift}_${new Date().toLocaleDateString()}`, 'true');
       setIsLocked(true);
-      setNote("");
+      setNote('');
       fetchTasks();
-      alert("Service clôturé avec succès !");
+      alert('Service clôturé avec succès !');
     }
     setSendingNote(false);
   }
@@ -148,119 +155,189 @@ export default function EquipePage() {
   const currentAutoShift = getAutomaticShift();
 
   return (
-    <div className="min-h-screen p-4 pb-32 bg-slate-950 text-white font-sans">
-      
-      {/* Header */}
-      <div className="flex justify-between items-center mb-6 pt-2">
-        <div>
-          <h1 className="text-2xl font-black uppercase tracking-tighter italic">Équipe Orbit<span className="text-orange-500">Aire</span></h1>
-          <div className="flex items-center gap-1.5 mt-1">
-             <MapPin size={10} className="text-orange-500" />
-             <span className="text-[9px] font-black uppercase text-slate-500 tracking-widest">{userProfile?.aires?.name}</span>
+    <PageShell>
+      <PageHeader
+        title="Équipe"
+        accent="OrbitAire"
+        subtitle={userProfile?.aires?.name || 'Checklist de service'}
+        icon={Users}
+      />
+
+      <PageBody>
+        <SegmentedTabs
+          value={view}
+          onChange={setView}
+          options={[
+            { value: 'checklist', label: 'Saisie', icon: CheckCircle2 },
+            { value: 'history', label: 'Historique', icon: History },
+          ]}
+        />
+
+        {loading ? (
+          <div className="flex justify-center py-20">
+            <Loader2 className="animate-spin text-cyan-400" size={28} />
           </div>
-        </div>
-      </div>
+        ) : view === 'checklist' ? (
+          <div className="space-y-4">
+            <div className="flex gap-1 rounded-xl border border-slate-800 bg-slate-950 p-1">
+              {['Matin', 'Après-midi', 'Nuit'].map((shift) => {
+                const isAuto = currentAutoShift === shift;
+                const active = activeShift === shift;
+                return (
+                  <button
+                    key={shift}
+                    type="button"
+                    disabled={!isAuto}
+                    onClick={() => setActiveShift(shift)}
+                    className={`relative flex-1 rounded-lg px-3 py-2.5 text-[11px] font-semibold uppercase tracking-wide transition ${
+                      active
+                        ? 'bg-cyan-500/20 text-cyan-300 shadow-sm shadow-cyan-950/30'
+                        : 'text-slate-500'
+                    } ${!isAuto ? 'cursor-not-allowed opacity-30' : 'hover:text-slate-300'}`}
+                  >
+                    {shift}
+                    {isAuto && (
+                      <span className="absolute bottom-1 left-1/2 h-1 w-1 -translate-x-1/2 animate-pulse rounded-full bg-cyan-400" />
+                    )}
+                  </button>
+                );
+              })}
+            </div>
 
-      {/* Navigation Onglets */}
-      <div className="flex bg-slate-900 p-1 rounded-2xl mb-8 border border-slate-800">
-        <button onClick={() => setView('checklist')} className={`flex-1 flex items-center justify-center gap-2 py-3 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all ${view === 'checklist' ? 'bg-orange-500 text-white shadow-lg shadow-orange-500/20' : 'text-slate-500'}`}><CheckCircle2 size={14} /> Saisie</button>
-        <button onClick={() => setView('history')} className={`flex-1 flex items-center justify-center gap-2 py-3 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all ${view === 'history' ? 'bg-orange-500 text-white shadow-lg shadow-orange-500/20' : 'text-slate-500'}`}><History size={14} /> Historique</button>
-      </div>
+            {!isLocked && activeShift !== currentAutoShift && (
+              <p className="text-center text-xs font-medium text-rose-400">
+                Shift hors plage horaire — accès limité
+              </p>
+            )}
 
-      {view === 'checklist' ? (
-        <div className="space-y-6 animate-in slide-in-from-right duration-300">
-          
-          {/* Sélecteur de Quart - VERROUILLÉ SI PAS LE BON QUART */}
-          <div className="flex gap-2 bg-slate-900/50 p-1.5 rounded-3xl border border-slate-800">
-            {['Matin', 'Après-midi', 'Nuit'].map((shift) => {
-              const isAuto = currentAutoShift === shift;
-              return (
-                <button 
-                  key={shift} 
-                  disabled={!isAuto} // VERROUILLAGE ICI
-                  onClick={() => setActiveShift(shift)} 
-                  className={`flex-1 py-3 rounded-2xl text-[9px] font-black uppercase transition-all relative ${activeShift === shift ? 'bg-orange-600 text-white shadow-md' : 'text-slate-500'} ${!isAuto ? 'opacity-20 grayscale cursor-not-allowed' : ''}`}
+            <div className={`space-y-2 ${isLocked ? 'pointer-events-none opacity-40 grayscale' : ''}`}>
+              {tasks.map((task) => (
+                <button
+                  key={task.id}
+                  type="button"
+                  onClick={() => toggleTask(task.id, task.is_completed)}
+                  className="flex w-full items-center gap-4 rounded-2xl border border-slate-800 bg-slate-900/60 p-4 text-left transition active:scale-[0.98]"
                 >
-                  {shift}
-                  {isAuto && <span className="absolute bottom-1 left-1/2 -translate-x-1/2 w-1 h-1 bg-white rounded-full animate-pulse"></span>}
+                  {task.is_completed ? (
+                    <CheckCircle2 className="shrink-0 text-emerald-400" />
+                  ) : (
+                    <Circle className="shrink-0 text-slate-600" />
+                  )}
+                  <div className="min-w-0">
+                    <p className={`text-sm font-medium ${task.is_completed ? 'text-slate-500 line-through' : 'text-white'}`}>
+                      {task.task_name}
+                    </p>
+                    <p className="mt-0.5 text-[10px] font-semibold uppercase tracking-wider text-cyan-400">
+                      {task.category}
+                    </p>
+                  </div>
                 </button>
-              );
-            })}
-          </div>
-
-          {!isLocked && activeShift !== currentAutoShift && (
-             <p className="text-center text-[8px] font-black uppercase text-red-500 tracking-widest animate-pulse">
-               ⚠️ Shift hors plage horaire - accès limité
-             </p>
-          )}
-
-          {/* Liste des Tâches */}
-          <div className={`space-y-3 ${isLocked ? 'opacity-40 grayscale pointer-events-none' : ''}`}>
-            {tasks.map((task) => (
-              <button key={task.id} onClick={() => toggleTask(task.id, task.is_completed)} className="w-full p-4 rounded-3xl border border-slate-800 bg-slate-900 flex items-center gap-4 text-left active:scale-[0.98] transition-transform">
-                {task.is_completed ? <CheckCircle2 className="text-green-500" /> : <Circle className="text-slate-700" />}
-                <div>
-                    <p className={`font-bold text-sm ${task.is_completed ? 'line-through text-slate-500 italic' : 'text-white'}`}>{task.task_name}</p>
-                    <p className="text-[8px] font-black uppercase text-orange-500 mt-1">{task.category}</p>
-                </div>
-              </button>
-            ))}
-          </div>
-
-          {/* Zone de Clôture */}
-          {!isLocked ? (
-            <div className="bg-slate-900 p-6 rounded-[2.5rem] border border-slate-800 space-y-4 shadow-2xl">
-              <div className="flex items-center gap-2 mb-2">
-                <MessageSquare size={14} className="text-orange-500" />
-                <span className="text-[10px] font-black uppercase text-slate-400">Note de passation</span>
-              </div>
-              <textarea value={note} onChange={(e) => setNote(e.target.value)} placeholder="Détails du quart..." className="w-full bg-slate-950 border border-slate-800 rounded-2xl p-4 text-sm outline-none min-h-[120px] text-white focus:border-orange-500/50" />
-              <button onClick={sendNoteAndCloseShift} disabled={!note.trim() || sendingNote} className="w-full bg-white text-slate-950 py-4 rounded-2xl font-black text-[10px] uppercase flex items-center justify-center gap-2 shadow-xl active:scale-95 disabled:opacity-50">
-                {sendingNote ? <Loader2 size={12} className="animate-spin" /> : <Send size={12} />}
-                Clôturer & Transmettre
-              </button>
+              ))}
             </div>
-          ) : (
-            <div className="bg-orange-500/10 border border-orange-500/20 p-6 rounded-[2.5rem] flex flex-col items-center gap-3 text-center">
-              <Lock size={20} className="text-orange-500" />
-              <p className="text-[10px] font-black text-orange-500 uppercase tracking-widest">Service clôturé</p>
-            </div>
-          )}
-        </div>
-      ) : (
-        /* VUE HISTORIQUE */
-        <div className="space-y-6 animate-in slide-in-from-left duration-300">
-          <div className="bg-slate-900 p-4 rounded-3xl border border-slate-800 flex items-center gap-4">
-            <CalendarIcon className="text-orange-500" size={20} />
-            <input type="date" value={historyDate} onChange={(e) => setHistoryDate(e.target.value)} className="bg-transparent border-none outline-none text-white font-black uppercase text-xs w-full color-scheme-dark" />
-          </div>
-          <div className="space-y-3">
-            {notesHistory.length > 0 ? notesHistory.map((h) => (
-              <button key={h.id} onClick={() => setSelectedNote(h)} className="w-full bg-slate-900 border border-slate-800 p-5 rounded-3xl flex items-center justify-between shadow-xl">
-                <div className="text-left">
-                  <p className="text-[10px] text-slate-500 font-black uppercase mb-1">{new Date(h.created_at).toLocaleTimeString()}</p>
-                  <p className="font-black text-white uppercase italic">{h.created_by}</p>
-                </div>
-                <div className={`px-4 py-2 rounded-xl font-black text-xs ${h.completion_rate === 100 ? 'bg-green-500/20 text-green-500' : 'bg-red-500/20 text-red-500'}`}>
-                  {h.completion_rate}%
-                </div>
-              </button>
-            )) : <p className="text-center py-20 text-slate-600 font-bold uppercase text-[10px] italic">Aucun rapport ce jour</p>}
-          </div>
-        </div>
-      )}
 
-      {/* POP-UP DÉTAIL RAPPORT (Logique X pour fermer) */}
+            {!isLocked ? (
+              <Panel>
+                <PanelTitle hint="Transmettez le contexte au prochain quart">
+                  <span className="inline-flex items-center gap-2">
+                    <MessageSquare size={14} className="text-cyan-400" />
+                    Note de passation
+                  </span>
+                </PanelTitle>
+                <textarea
+                  value={note}
+                  onChange={(e) => setNote(e.target.value)}
+                  placeholder="Détails du quart…"
+                  className="mb-3 min-h-[120px] w-full rounded-xl border border-slate-800 bg-slate-950 p-4 text-sm text-white outline-none focus:border-cyan-500/50"
+                />
+                <PrimaryButton
+                  onClick={sendNoteAndCloseShift}
+                  disabled={!note.trim() || sendingNote}
+                  className="w-full"
+                >
+                  {sendingNote ? <Loader2 size={12} className="animate-spin" /> : <Send size={12} />}
+                  Clôturer &amp; Transmettre
+                </PrimaryButton>
+              </Panel>
+            ) : (
+              <Panel className="flex flex-col items-center gap-3 border-cyan-500/30 bg-cyan-500/10 text-center">
+                <Lock size={20} className="text-cyan-400" />
+                <p className="text-xs font-semibold uppercase tracking-wider text-cyan-300">
+                  Service clôturé
+                </p>
+              </Panel>
+            )}
+          </div>
+        ) : (
+          <div className="space-y-4">
+            <Panel className="flex items-center gap-4">
+              <CalendarIcon className="text-cyan-400" size={20} />
+              <input
+                type="date"
+                value={historyDate}
+                onChange={(e) => setHistoryDate(e.target.value)}
+                className="w-full border-none bg-transparent text-sm font-medium text-white outline-none color-scheme-dark"
+              />
+            </Panel>
+
+            <div className="space-y-2">
+              {notesHistory.length > 0 ? (
+                notesHistory.map((h) => (
+                  <button
+                    key={h.id}
+                    type="button"
+                    onClick={() => setSelectedNote(h)}
+                    className="flex w-full items-center justify-between rounded-2xl border border-slate-800 bg-slate-900/60 p-4 shadow-xl shadow-cyan-950/10"
+                  >
+                    <div className="text-left">
+                      <p className="mb-1 text-[10px] font-medium uppercase tracking-wider text-slate-500">
+                        {new Date(h.created_at).toLocaleTimeString()}
+                      </p>
+                      <p className="font-semibold text-white">{h.created_by}</p>
+                    </div>
+                    <div
+                      className={`rounded-xl px-4 py-2 text-xs font-bold tabular-nums ${
+                        h.completion_rate === 100
+                          ? 'bg-emerald-500/20 text-emerald-400'
+                          : 'bg-rose-500/20 text-rose-400'
+                      }`}
+                    >
+                      {h.completion_rate}%
+                    </div>
+                  </button>
+                ))
+              ) : (
+                <p className="py-16 text-center text-sm text-slate-500">Aucun rapport ce jour</p>
+              )}
+            </div>
+          </div>
+        )}
+      </PageBody>
+
       {selectedNote && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-6 bg-slate-950/90 backdrop-blur-sm">
-          <div className="bg-slate-900 border border-slate-800 w-full max-w-sm rounded-[3rem] p-8 relative shadow-2xl max-h-[85vh] overflow-y-auto">
-            <button onClick={() => setSelectedNote(null)} className="absolute top-6 right-6 p-2 text-slate-400"><X size={20}/></button>
-            <h2 className="text-2xl font-black text-white mb-4 uppercase italic italic">Rapport {selectedNote.created_by}</h2>
-            <div className="bg-slate-950 p-6 rounded-3xl border border-slate-800 mb-6 italic text-slate-200">"{selectedNote.content}"</div>
-            <button onClick={() => setSelectedNote(null)} className="w-full py-4 bg-orange-600 text-white rounded-2xl font-black text-xs uppercase italic">Fermer</button>
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/90 p-6 backdrop-blur-sm">
+          <div className="relative max-h-[85vh] w-full max-w-sm overflow-y-auto rounded-2xl border border-slate-800 bg-slate-900 p-6 shadow-2xl">
+            <button
+              type="button"
+              onClick={() => setSelectedNote(null)}
+              className="absolute right-4 top-4 p-2 text-slate-400 hover:text-white"
+            >
+              <X size={20} />
+            </button>
+            <h2
+              className="mb-4 pr-8 text-xl font-semibold text-white"
+              style={{ fontFamily: 'var(--font-display), system-ui' }}
+            >
+              Rapport {selectedNote.created_by}
+            </h2>
+            <div className="mb-6 rounded-xl border border-slate-800 bg-slate-950 p-4 text-slate-200">
+              &ldquo;{selectedNote.content}&rdquo;
+            </div>
+            <PrimaryButton onClick={() => setSelectedNote(null)} className="w-full">
+              Fermer
+            </PrimaryButton>
           </div>
         </div>
       )}
-    </div>
+    </PageShell>
   );
 }

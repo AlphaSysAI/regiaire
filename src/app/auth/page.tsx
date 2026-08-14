@@ -5,6 +5,7 @@ import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { supabase } from '@/lib/supabase';
 import { User, Mail, Lock, MapPin, Loader2, ChevronRight } from 'lucide-react';
+import { AuthShell, AuthBrand, Panel, PrimaryButton } from '@/components/ui/orbit';
 
 type Aire = { id: string; name: string; city: string | null };
 
@@ -112,35 +113,30 @@ export default function AuthPage() {
     setTimeout(() => router.push('/login'), 4000);
   }
 
-  return (
-    <div className="min-h-screen bg-slate-950 flex flex-col items-center justify-center p-6 text-white font-sans">
-      <div className="w-full max-w-sm space-y-8 animate-in fade-in zoom-in duration-500">
-        <div className="text-center">
-          <h1 className="text-4xl font-black tracking-tighter uppercase italic">
-            Orbit<span className="text-cyan-400">Aire</span>
-          </h1>
-          <p className="text-[10px] text-slate-500 font-bold uppercase tracking-[0.4em] mt-2 italic">
-            Créer un compte
-          </p>
-        </div>
+  const fieldClass =
+    'w-full bg-slate-950 border border-slate-800 rounded-2xl p-4 pl-12 text-sm outline-none focus:border-cyan-400 focus:ring-1 focus:ring-cyan-400/40 text-white';
 
-        <form
-          onSubmit={handleSignUp}
-          className="bg-slate-900 border border-slate-800 p-8 rounded-[3rem] shadow-2xl space-y-4"
-        >
+  return (
+    <AuthShell>
+      <AuthBrand subtitle="Créer un compte" />
+
+      <Panel className="p-8 space-y-4">
+        <form onSubmit={handleSignUp} className="space-y-4">
           {error && (
-            <div className="bg-red-500/10 border border-red-500/20 text-red-500 text-[10px] font-black uppercase p-3 rounded-xl text-center">
+            <div className="bg-red-500/10 border border-red-500/20 text-red-400 text-xs font-medium p-3 rounded-xl text-center">
               {error}
             </div>
           )}
           {success && (
-            <div className="bg-green-500/10 border border-green-500/20 text-green-400 text-[10px] font-black uppercase p-3 rounded-xl text-center">
+            <div className="bg-green-500/10 border border-green-500/20 text-green-400 text-xs font-medium p-3 rounded-xl text-center">
               {success}
             </div>
           )}
 
           <label className="block">
-            <span className="text-[9px] font-black uppercase text-slate-500 ml-1">Nom complet</span>
+            <span className="text-[10px] font-semibold uppercase tracking-wider text-slate-500 ml-1">
+              Nom complet
+            </span>
             <div className="relative mt-1">
               <User className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-600" size={18} />
               <input
@@ -149,13 +145,15 @@ export default function AuthPage() {
                 value={fullName}
                 onChange={(e) => setFullName(e.target.value)}
                 placeholder="Jean Dupont"
-                className="w-full bg-slate-950 border border-slate-800 rounded-2xl p-4 pl-12 text-sm outline-none focus:border-orange-500"
+                className={fieldClass}
               />
             </div>
           </label>
 
           <label className="block">
-            <span className="text-[9px] font-black uppercase text-slate-500 ml-1">Email</span>
+            <span className="text-[10px] font-semibold uppercase tracking-wider text-slate-500 ml-1">
+              Email
+            </span>
             <div className="relative mt-1">
               <Mail className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-600" size={18} />
               <input
@@ -164,13 +162,15 @@ export default function AuthPage() {
                 value={email}
                 onChange={(e) => setEmail(e.target.value)}
                 placeholder="vous@exemple.fr"
-                className="w-full bg-slate-950 border border-slate-800 rounded-2xl p-4 pl-12 text-sm outline-none focus:border-orange-500"
+                className={fieldClass}
               />
             </div>
           </label>
 
           <label className="block">
-            <span className="text-[9px] font-black uppercase text-slate-500 ml-1">Aire</span>
+            <span className="text-[10px] font-semibold uppercase tracking-wider text-slate-500 ml-1">
+              Aire
+            </span>
             <div className="relative mt-1">
               <MapPin className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-600 z-10" size={18} />
               <select
@@ -178,7 +178,7 @@ export default function AuthPage() {
                 disabled={loadingAires}
                 value={aireId}
                 onChange={(e) => setAireId(e.target.value)}
-                className="w-full bg-slate-950 border border-slate-800 rounded-2xl p-4 pl-12 text-sm outline-none focus:border-orange-500 appearance-none"
+                className={`${fieldClass} appearance-none`}
               >
                 <option value="">
                   {loadingAires ? 'Chargement…' : '— Choisir votre aire —'}
@@ -194,7 +194,9 @@ export default function AuthPage() {
           </label>
 
           <label className="block">
-            <span className="text-[9px] font-black uppercase text-slate-500 ml-1">Mot de passe</span>
+            <span className="text-[10px] font-semibold uppercase tracking-wider text-slate-500 ml-1">
+              Mot de passe
+            </span>
             <div className="relative mt-1">
               <Lock className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-600" size={18} />
               <input
@@ -204,13 +206,15 @@ export default function AuthPage() {
                 value={password}
                 onChange={(e) => setPassword(e.target.value)}
                 placeholder="Min. 8 caractères"
-                className="w-full bg-slate-950 border border-slate-800 rounded-2xl p-4 pl-12 text-sm outline-none focus:border-orange-500"
+                className={fieldClass}
               />
             </div>
           </label>
 
           <label className="block">
-            <span className="text-[9px] font-black uppercase text-slate-500 ml-1">Confirmer</span>
+            <span className="text-[10px] font-semibold uppercase tracking-wider text-slate-500 ml-1">
+              Confirmer
+            </span>
             <div className="relative mt-1">
               <Lock className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-600" size={18} />
               <input
@@ -220,31 +224,33 @@ export default function AuthPage() {
                 value={confirmPassword}
                 onChange={(e) => setConfirmPassword(e.target.value)}
                 placeholder="Répéter le mot de passe"
-                className="w-full bg-slate-950 border border-slate-800 rounded-2xl p-4 pl-12 text-sm outline-none focus:border-orange-500"
+                className={fieldClass}
               />
             </div>
           </label>
 
-          <button
+          <PrimaryButton
             type="submit"
             disabled={loading || loadingAires}
-            className="w-full bg-orange-500 hover:bg-orange-600 text-white h-14 rounded-2xl font-black uppercase text-xs flex items-center justify-center gap-2 shadow-lg active:scale-95 transition-all disabled:opacity-50 mt-2"
+            className="w-full h-14 text-sm mt-2"
           >
             {loading ? (
               <Loader2 className="animate-spin" size={18} />
             ) : (
-              <>Créer mon compte <ChevronRight size={16} /></>
+              <>
+                Créer mon compte <ChevronRight size={16} />
+              </>
             )}
-          </button>
+          </PrimaryButton>
         </form>
+      </Panel>
 
-        <p className="text-center text-slate-500 text-[10px] font-bold uppercase">
-          Déjà un compte ?{' '}
-          <Link href="/login" className="text-orange-500 hover:text-orange-400">
-            Se connecter
-          </Link>
-        </p>
-      </div>
-    </div>
+      <p className="text-center text-slate-500 text-[10px] font-medium">
+        Déjà un compte ?{' '}
+        <Link href="/login" className="text-cyan-400 hover:text-cyan-300">
+          Se connecter
+        </Link>
+      </p>
+    </AuthShell>
   );
 }

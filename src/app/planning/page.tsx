@@ -3,13 +3,21 @@
 import { useEffect, useState } from 'react';
 import { supabase } from '@/lib/supabase';
 import { 
-  Calendar, Plus, Users, Clock, FileDown, MessageSquare, 
-  X, Loader2, CheckCircle, AlertCircle, Trash2, ChevronLeft, ChevronRight,
+  Calendar, Plus, Users, FileDown, MessageSquare, 
+  X, Loader2, Trash2, ChevronLeft, ChevronRight,
   Send, Sparkles
 } from 'lucide-react';
 import jsPDF from 'jspdf';
 // @ts-ignore
 import autoTable from 'jspdf-autotable';
+import {
+  PageShell,
+  PageHeader,
+  PageBody,
+  Panel,
+  PanelTitle,
+  PrimaryButton,
+} from '@/components/ui/orbit';
 
 interface Employee {
   id?: string;
@@ -79,7 +87,7 @@ function MonthPicker({ selectedMonth, onSelect }: { selectedMonth: string; onSel
               onClick={() => onSelect(monthValue)}
               className={`p-3 rounded-lg font-medium transition-all ${
                 isSelected
-                  ? 'bg-orange-600 text-white'
+                  ? 'bg-cyan-600 text-white'
                   : 'bg-slate-700 text-slate-300 hover:bg-slate-600'
               }`}
             >
@@ -483,7 +491,7 @@ export default function PlanningPage() {
                     {totalHours.toFixed(1)}h / {expectedHours}h ({percent}%)
                   </div>
                   {Math.abs(deviation) > 5 && (
-                    <div className={`text-xs mt-1 ${deviation > 0 ? 'text-orange-400' : 'text-red-400'}`}>
+                    <div className={`text-xs mt-1 ${deviation > 0 ? 'text-cyan-400' : 'text-red-400'}`}>
                       {deviation > 0 ? '+' : ''}{deviation}h
                     </div>
                   )}
@@ -498,33 +506,34 @@ export default function PlanningPage() {
 
   if (loading) {
     return (
-      <div className="p-6 flex items-center justify-center min-h-screen">
-        <Loader2 className="animate-spin text-orange-600" size={32} />
-      </div>
+      <PageShell>
+        <PageHeader title="Planning" accent="équipe" icon={Calendar} />
+        <PageBody>
+          <div className="flex items-center justify-center py-24">
+            <Loader2 className="animate-spin text-cyan-400" size={32} />
+          </div>
+        </PageBody>
+      </PageShell>
     );
   }
 
   return (
-    <div className="p-6 pb-24">
-      <div className="flex items-center gap-3 mb-6">
-        <Calendar className="text-orange-600" size={28} />
-        <h1 className="text-2xl font-bold text-white">Planning</h1>
-      </div>
-
+    <PageShell>
+      <PageHeader title="Planning" accent="équipe" icon={Calendar} />
+      <PageBody>
       {/* Section Employés */}
-      <div className="bg-slate-800 rounded-lg border border-slate-700 p-6 mb-6">
+      <Panel>
         <div className="flex items-center justify-between mb-4">
-          <h2 className="text-xl font-semibold text-white flex items-center gap-2">
-            <Users size={20} />
-            Employés ({employees.length})
-          </h2>
-          <button
-            onClick={() => setShowAddEmployee(true)}
-            className="flex items-center gap-2 bg-orange-600 hover:bg-orange-700 text-white px-4 py-2 rounded-lg transition-colors"
-          >
-            <Plus size={18} />
+          <PanelTitle>
+            <span className="inline-flex items-center gap-2">
+              <Users size={18} />
+              Employés ({employees.length})
+            </span>
+          </PanelTitle>
+          <PrimaryButton onClick={() => setShowAddEmployee(true)} className="!py-2 !px-3">
+            <Plus size={16} />
             Ajouter
-          </button>
+          </PrimaryButton>
         </div>
 
         {employees.length === 0 ? (
@@ -536,7 +545,7 @@ export default function PlanningPage() {
             {employees.map(emp => (
               <div
                 key={emp.id}
-                className="bg-slate-700 rounded-lg p-4 border border-slate-600"
+                className="bg-slate-950/60 rounded-xl p-4 border border-slate-800"
               >
                 <div className="flex items-start justify-between">
                   <div>
@@ -547,7 +556,7 @@ export default function PlanningPage() {
                       {emp.heures_semaine}h/sem • {emp.heures_mois}h/mois
                     </div>
                     {emp.profil_equipe && (
-                      <div className="text-orange-400 text-xs mt-1 font-medium">
+                      <div className="text-cyan-400 text-xs mt-1 font-medium">
                         {PROFIL_LABELS[emp.profil_equipe] || emp.profil_equipe}
                       </div>
                     )}
@@ -568,20 +577,22 @@ export default function PlanningPage() {
             ))}
           </div>
         )}
-      </div>
+      </Panel>
 
       {/* Section Génération */}
-      <div className="bg-slate-800 rounded-lg border border-slate-700 p-6 mb-6">
+      <Panel>
         <div className="flex items-center justify-between mb-4">
-          <h2 className="text-xl font-semibold text-white flex items-center gap-2">
-            <Sparkles size={20} />
-            Génération Planning
-          </h2>
+          <PanelTitle>
+            <span className="inline-flex items-center gap-2">
+              <Sparkles size={18} />
+              Génération Planning
+            </span>
+          </PanelTitle>
           <button
             onClick={() => setShowChat(!showChat)}
-            className="flex items-center gap-2 bg-slate-700 hover:bg-slate-600 text-white px-4 py-2 rounded-lg transition-colors"
+            className="flex items-center gap-2 rounded-xl border border-slate-800 bg-slate-950 px-4 py-2 text-xs font-semibold uppercase tracking-wide text-slate-300 transition hover:border-cyan-500/40 hover:text-cyan-300"
           >
-            <MessageSquare size={18} />
+            <MessageSquare size={16} />
             {showChat ? 'Masquer' : 'Instructions'}
           </button>
         </div>
@@ -594,10 +605,9 @@ export default function PlanningPage() {
             <Calendar size={18} />
             {new Date(`${selectedMonth}-01`).toLocaleDateString('fr-FR', { month: 'long', year: 'numeric' })}
           </button>
-          <button
+          <PrimaryButton
             onClick={handleGeneratePlanning}
             disabled={generating || employees.length === 0}
-            className="flex items-center gap-2 bg-orange-600 hover:bg-orange-700 disabled:bg-slate-600 disabled:cursor-not-allowed text-white px-6 py-2 rounded-lg transition-colors"
           >
             {generating ? (
               <>
@@ -610,7 +620,7 @@ export default function PlanningPage() {
                 Générer le planning
               </>
             )}
-          </button>
+          </PrimaryButton>
         </div>
 
         {showChat && (
@@ -626,7 +636,7 @@ export default function PlanningPage() {
                     key={idx}
                     className={`p-2 rounded ${
                       msg.role === 'user'
-                        ? 'bg-orange-600/20 text-orange-200 ml-4'
+                        ? 'bg-cyan-600/20 text-cyan-200 ml-4'
                         : 'bg-slate-700 text-slate-300 mr-4'
                     }`}
                   >
@@ -647,33 +657,33 @@ export default function PlanningPage() {
                   }
                 }}
                 placeholder="Ex: Éviter les nuits consécutives pour Jean..."
-                className="flex-1 bg-slate-800 border border-slate-600 text-white px-3 py-2 rounded-lg focus:outline-none focus:ring-2 focus:ring-orange-600"
+                className="flex-1 bg-slate-800 border border-slate-600 text-white px-3 py-2 rounded-lg focus:outline-none focus:ring-2 focus:ring-cyan-500"
               />
-              <button
+              <PrimaryButton
                 onClick={() => {
                   if (chatInput.trim()) {
                     setChatMessages([...chatMessages, { role: 'user', content: chatInput }]);
                     setChatInput('');
                   }
                 }}
-                className="bg-orange-600 hover:bg-orange-700 text-white px-4 py-2 rounded-lg transition-colors"
+                className="!px-3 !py-2"
               >
                 <Send size={18} />
-              </button>
+              </PrimaryButton>
             </div>
           </div>
         )}
-      </div>
+      </Panel>
 
       {/* Section Planning générés */}
       {schedules.length > 0 && (
-        <div className="bg-slate-800 rounded-lg border border-slate-700 p-6 mb-6">
-          <h2 className="text-xl font-semibold text-white mb-4">Plannings générés</h2>
+        <Panel>
+          <PanelTitle>Plannings générés</PanelTitle>
           <div className="space-y-3">
             {schedules.map(schedule => (
               <div
                 key={schedule.id}
-                className="bg-slate-700 rounded-lg p-4 border border-slate-600"
+                className="bg-slate-950/60 rounded-xl p-4 border border-slate-800"
               >
                 <div className="flex items-center justify-between mb-2">
                   <div>
@@ -714,7 +724,7 @@ export default function PlanningPage() {
               </div>
             ))}
           </div>
-        </div>
+        </Panel>
       )}
 
       {/* Modal Ajout Employé */}
@@ -816,12 +826,9 @@ export default function PlanningPage() {
                   Max 2 nocturnes. Aprem jamais le lendemain d&apos;une nuit. Repos 11 h (Code du travail).
                 </p>
               </div>
-              <button
-                onClick={handleAddEmployee}
-                className="w-full bg-orange-600 hover:bg-orange-700 text-white py-2 rounded-lg transition-colors"
-              >
+              <PrimaryButton onClick={handleAddEmployee} className="w-full">
                 Ajouter
-              </button>
+              </PrimaryButton>
             </div>
           </div>
         </div>
@@ -850,6 +857,7 @@ export default function PlanningPage() {
           </div>
         </div>
       )}
-    </div>
+      </PageBody>
+    </PageShell>
   );
 }

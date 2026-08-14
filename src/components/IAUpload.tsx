@@ -97,7 +97,7 @@ export default function IAUpload({ aireId, onComplete }: { aireId: string, onCom
         onClick={() => setShowModal(true)}
         className="w-full bg-white text-slate-950 rounded-[2.5rem] p-7 flex items-center justify-center gap-4 shadow-xl active:scale-95 transition-all group"
       >
-        <div className="bg-orange-500 p-2 rounded-xl text-white group-hover:rotate-12 transition-transform">
+        <div className="bg-cyan-500 p-2 rounded-xl text-white group-hover:rotate-12 transition-transform">
           <Upload size={20} />
         </div>
         <span className="font-black uppercase italic text-sm">Ajouter un document</span>
@@ -127,9 +127,9 @@ export default function IAUpload({ aireId, onComplete }: { aireId: string, onCom
                     <div className="grid gap-4">
                       <button 
                         onClick={() => setImportType('invoice')}
-                        className="flex items-center gap-4 p-6 bg-slate-950 border border-slate-800 rounded-3xl hover:border-orange-500 transition-all text-left group"
+                        className="flex items-center gap-4 p-6 bg-slate-950 border border-slate-800 rounded-3xl hover:border-cyan-500 transition-all text-left group"
                       >
-                        <div className="bg-orange-500/10 p-3 rounded-2xl text-orange-500 group-hover:bg-orange-500 group-hover:text-white transition-all">
+                        <div className="bg-cyan-500/10 p-3 rounded-2xl text-cyan-400 group-hover:bg-cyan-500 group-hover:text-white transition-all">
                           <FileText size={24} />
                         </div>
                         <div>
@@ -155,7 +155,7 @@ export default function IAUpload({ aireId, onComplete }: { aireId: string, onCom
                 ) : (
                   <>
                     <div className="text-center mb-4">
-                      <div className="flex items-center justify-center gap-2 text-orange-500 mb-2">
+                      <div className="flex items-center justify-center gap-2 text-cyan-400 mb-2">
                          <Camera size={16} />
                          <h2 className="text-lg font-black uppercase italic text-white">
                            {importType === 'invoice' ? 'Scan Livraison' : 'Scan Inventaire'}
@@ -177,7 +177,7 @@ export default function IAUpload({ aireId, onComplete }: { aireId: string, onCom
 
                     <div className="grid grid-cols-2 gap-3 pt-2">
                       <label className="flex flex-col items-center justify-center gap-2 p-4 bg-slate-800 rounded-3xl cursor-pointer hover:bg-slate-700 transition-all border border-slate-700">
-                        <Camera size={20} className="text-orange-500" />
+                        <Camera size={20} className="text-cyan-400" />
                         <span className="text-[9px] font-black uppercase">Capturer</span>
                         <input type="file" className="hidden" onChange={handleCapture} accept="image/*" capture="environment" />
                       </label>
@@ -185,7 +185,7 @@ export default function IAUpload({ aireId, onComplete }: { aireId: string, onCom
                         disabled={capturedImages.length === 0}
                         onClick={() => processAnalysis(capturedImages)}
                         className={`rounded-3xl font-black uppercase text-[10px] flex flex-col items-center justify-center gap-2 italic transition-all ${
-                          capturedImages.length > 0 ? 'bg-orange-600 text-white shadow-lg' : 'bg-slate-800 text-slate-600'
+                          capturedImages.length > 0 ? 'bg-cyan-600 text-white shadow-lg' : 'bg-slate-800 text-slate-600'
                         }`}
                       >
                         <Upload size={20} />
@@ -201,7 +201,7 @@ export default function IAUpload({ aireId, onComplete }: { aireId: string, onCom
                 {status === 'parsing' && (
                   <>
                     <div className="relative mb-6">
-                      <Loader2 className="animate-spin text-orange-500" size={60} />
+                      <Loader2 className="animate-spin text-cyan-400" size={60} />
                       <Sparkles className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 text-white/50 animate-pulse" size={24} />
                     </div>
                     <p className="text-sm font-black uppercase text-white italic tracking-widest">Analyse Intelligente</p>
