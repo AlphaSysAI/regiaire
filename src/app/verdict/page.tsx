@@ -5,7 +5,7 @@ import { supabase } from '@/lib/supabase';
 import { useRouter } from 'next/navigation';
 import {
   ArrowLeft, Sparkles, TrendingUp, TrendingDown, Navigation, RefreshCw,
-  Sun, CloudRain, Car, Trophy, AlertTriangle, Calendar, ShoppingBag,
+  Sun, CloudRain, Car, Trophy, AlertTriangle, Calendar, ShoppingBag, PackagePlus,
 } from 'lucide-react';
 import {
   ResponsiveContainer, LineChart, Line, XAxis, YAxis, Tooltip, CartesianGrid,
@@ -189,6 +189,13 @@ export default function VerdictDetail() {
                   <p className="text-[13.5px] font-bold text-white leading-relaxed">{s.body}</p>
                 </div>
               ))}
+              <button
+                onClick={() => router.push('/reappro')}
+                className="flex items-center gap-2 bg-white/20 hover:bg-white/30 px-4 py-2.5 rounded-xl backdrop-blur-md transition-all active:scale-95 w-fit"
+              >
+                <PackagePlus size={14} className="text-white" />
+                <span className="text-[9px] font-black uppercase tracking-widest text-white italic">Voir le plan de réappro</span>
+              </button>
             </div>
             <TrendingUp size={150} className="absolute -right-8 -bottom-8 opacity-10 text-white rotate-6" />
           </div>

@@ -3,26 +3,21 @@ package com.regiaire.planning.domain;
 import ai.timefold.solver.core.api.domain.entity.PlanningEntity;
 import ai.timefold.solver.core.api.domain.lookup.PlanningId;
 import ai.timefold.solver.core.api.domain.variable.PlanningVariable;
-import com.regiaire.planning.constraints.ShiftTiming;
 
+/** Poste supplémentaire optionnel (2e personne sur matin/aprem). */
 @PlanningEntity
-public class ShiftAssignment {
-    /** Heures comptées pour un quart de jour (8 h - 30 min de pause). */
-    public static final int DAY_SHIFT_COUNTED_MINUTES = 450;
-    /** Heures comptées pour un quart de nuit (pas de pause décomptée). */
-    public static final int NIGHT_SHIFT_COUNTED_MINUTES = 480;
-
+public class ExtraShiftAssignment {
     @PlanningId
     private String id;
     private Shift shift;
 
-    @PlanningVariable
+    @PlanningVariable(nullable = true)
     private Employee employee;
 
-    public ShiftAssignment() {
+    public ExtraShiftAssignment() {
     }
 
-    public ShiftAssignment(String id, Shift shift) {
+    public ExtraShiftAssignment(String id, Shift shift) {
         this.id = id;
         this.shift = shift;
     }
@@ -34,19 +29,12 @@ public class ShiftAssignment {
     public Employee getEmployee() { return employee; }
     public void setEmployee(Employee employee) { this.employee = employee; }
 
-    /** Minutes comptabilisées dans le total contractuel de l'employé. */
     public int getCountedMinutes() {
         if (shift == null) return 0;
-        return ShiftTiming.isNightShift(shift) ? NIGHT_SHIFT_COUNTED_MINUTES : DAY_SHIFT_COUNTED_MINUTES;
+        return ShiftAssignment.DAY_SHIFT_COUNTED_MINUTES;
     }
 
-    /** Heures comptabilisées (7,5 h jour / 8 h nuit). */
     public double getCountedHours() {
         return getCountedMinutes() / 60.0;
-    }
-
-    /** Durée de présence sur le quart (8 h), pour l'affichage horaire. */
-    public int getPresenceHours() {
-        return 8;
     }
 }

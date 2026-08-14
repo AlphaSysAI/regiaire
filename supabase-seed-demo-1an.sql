@@ -1,7 +1,7 @@
 -- =============================================================================
--- RégiAire — Jeu de données de démonstration : 1 AN D'ACTIVITÉ
+-- OrbitAire — Jeu de données de démonstration : 1 AN D'ACTIVITÉ
 -- =============================================================================
--- Aire cible : a0000000-0000-4000-8000-000000000001  (Aire Démo RégiAire — Lyon)
+-- Aire cible : a0000000-0000-4000-8000-000000000001  (Aire Démo OrbitAire — Lyon)
 --
 -- Contenu généré (relatif à CURRENT_DATE, sur 365 jours glissants) :
 --   • 21 produits répartis en catégories (boissons, snacking, frais, fruits...)
@@ -22,7 +22,7 @@ BEGIN;
 -- 0. Aire + purge des anciennes données de démo de cette aire
 -- -----------------------------------------------------------------------------
 INSERT INTO public.aires (id, name, city, latitude, longitude)
-VALUES ('a0000000-0000-4000-8000-000000000001', 'Aire Démo RégiAire', 'Lyon', 45.764000, 4.835700)
+VALUES ('a0000000-0000-4000-8000-000000000001', 'Aire Démo OrbitAire', 'Lyon', 45.764000, 4.835700)
 ON CONFLICT (id) DO NOTHING;
 
 DELETE FROM public.waste_logs        WHERE aire_id = 'a0000000-0000-4000-8000-000000000001';
@@ -258,13 +258,18 @@ END $$;
 -- -----------------------------------------------------------------------------
 -- 5. Équipe (employees)
 -- -----------------------------------------------------------------------------
-INSERT INTO public.employees (id, aire_id, prenom, nom, heures_semaine, heures_mois, quart_prefere, quart_obligatoire)
+INSERT INTO public.employees (id, aire_id, prenom, nom, heures_semaine, heures_mois, quart_prefere, quart_obligatoire, profil_equipe)
 VALUES
-  ('c0000000-0000-4000-8000-000000000001','a0000000-0000-4000-8000-000000000001','Sophie',   'Martin',   35, 151, ARRAY['6-14']::text[],          NULL),
-  ('c0000000-0000-4000-8000-000000000002','a0000000-0000-4000-8000-000000000001','Karim',    'Benali',   35, 151, ARRAY['14-22']::text[],         NULL),
-  ('c0000000-0000-4000-8000-000000000003','a0000000-0000-4000-8000-000000000001','Julie',    'Petit',    28, 121, ARRAY['6-14','14-22']::text[],  NULL),
-  ('c0000000-0000-4000-8000-000000000004','a0000000-0000-4000-8000-000000000001','Thomas',   'Roux',     35, 151, ARRAY['22-6']::text[],          '22-6'),
-  ('c0000000-0000-4000-8000-000000000005','a0000000-0000-4000-8000-000000000001','Amina',    'Diallo',   35, 151, ARRAY['14-22','22-6']::text[],  NULL);
+  ('c0000000-0000-4000-8000-000000000001','a0000000-0000-4000-8000-000000000001','Sophie',   'Martin',   35, 151, ARRAY['6-14']::text[],                 NULL,    'jour'),
+  ('c0000000-0000-4000-8000-000000000002','a0000000-0000-4000-8000-000000000001','Karim',    'Benali',   35, 151, ARRAY['14-22']::text[],                NULL,    'jour'),
+  ('c0000000-0000-4000-8000-000000000003','a0000000-0000-4000-8000-000000000001','Julie',    'Petit',    28, 121, ARRAY['6-14','14-22']::text[],         NULL,    'jour'),
+  ('c0000000-0000-4000-8000-000000000004','a0000000-0000-4000-8000-000000000001','Lucas',    'Moreau',   35, 151, ARRAY['6-14']::text[],                 NULL,    'jour'),
+  ('c0000000-0000-4000-8000-000000000005','a0000000-0000-4000-8000-000000000001','Emma',     'Bernard',  35, 151, ARRAY['14-22']::text[],                NULL,    'jour'),
+  ('c0000000-0000-4000-8000-000000000006','a0000000-0000-4000-8000-000000000001','Hugo',     'Lambert',  28, 121, ARRAY['6-14','14-22']::text[],         NULL,    'jour'),
+  ('c0000000-0000-4000-8000-000000000007','a0000000-0000-4000-8000-000000000001','Thomas',   'Roux',     35, 151, ARRAY['22-6']::text[],                 '22-6',  'nuit'),
+  ('c0000000-0000-4000-8000-000000000008','a0000000-0000-4000-8000-000000000001','Amina',    'Diallo',   35, 151, ARRAY['14-22','22-6']::text[],         '22-6',  'nuit_aprem'),
+  ('c0000000-0000-4000-8000-000000000009','a0000000-0000-4000-8000-000000000001','Mehdi',    'Kaci',     28, 121, ARRAY['22-6']::text[],                 '22-6',  'nuit'),
+  ('c0000000-0000-4000-8000-00000000000a','a0000000-0000-4000-8000-000000000001','Claire',   'Nguyen',   28, 121, ARRAY['14-22','22-6']::text[],         '22-6',  'nuit_aprem');
 
 -- -----------------------------------------------------------------------------
 -- 6. Planning courant (schedules + schedule_shifts) — quinzaine en cours
@@ -274,7 +279,7 @@ VALUES
   ('e0000000-0000-4000-8000-000000000001','a0000000-0000-4000-8000-000000000001',
    CURRENT_DATE - 7, CURRENT_DATE + 7,
    '{"source":"seed","couverture":"3 quarts/jour","rotation":"6-14 / 14-22 / 22-6"}'::jsonb,
-   'Renforcer les créneaux week-end (affluence). Couverture nuit assurée par Thomas.',
+   'Renforcer les créneaux week-end (affluence). Couverture nuit : Thomas, Mehdi, Amina, Claire.',
    CURRENT_DATE - 8 + interval '10 hours');
 
 DO $$
@@ -285,16 +290,24 @@ DECLARE
     'c0000000-0000-4000-8000-000000000002',
     'c0000000-0000-4000-8000-000000000003',
     'c0000000-0000-4000-8000-000000000004',
-    'c0000000-0000-4000-8000-000000000005'];
+    'c0000000-0000-4000-8000-000000000005',
+    'c0000000-0000-4000-8000-000000000006',
+    'c0000000-0000-4000-8000-000000000007',
+    'c0000000-0000-4000-8000-000000000008',
+    'c0000000-0000-4000-8000-000000000009',
+    'c0000000-0000-4000-8000-00000000000a'];
   starts  time[] := ARRAY['06:00','14:00','22:00']::time[];
   ends    time[] := ARRAY['14:00','22:00','06:00']::time[];
   i int; j int; q int;
 BEGIN
   FOR i IN 0..13 LOOP                       -- 14 jours
-    FOR j IN 1..array_length(emps, 1) LOOP  -- 5 employés
+    FOR j IN 1..array_length(emps, 1) LOOP  -- 10 employés
       q := ((i + j) % 3) + 1;               -- rotation des quarts
-      -- Thomas (index 4) toujours de nuit
-      IF j = 4 THEN q := 3; END IF;
+      -- Thomas (7) et Mehdi (9) : nuit uniquement
+      IF j IN (7, 9) THEN q := 3; END IF;
+      -- Amina (8) et Claire (10) : surtout nuit, aprem occasionnel
+      IF j IN (8, 10) AND (i + j) % 2 = 0 THEN q := 2; END IF;
+      IF j IN (8, 10) AND (i + j) % 2 != 0 THEN q := 3; END IF;
       INSERT INTO public.schedule_shifts (schedule_id, employee_id, date, quart_debut, quart_fin, heures)
       VALUES (v_sched, emps[j], CURRENT_DATE - 7 + i, starts[q], ends[q], 8);
     END LOOP;
@@ -308,7 +321,7 @@ DO $$
 DECLARE
   v_aire uuid := 'a0000000-0000-4000-8000-000000000001';
   d      date := CURRENT_DATE - 364;
-  auteurs text[] := ARRAY['Sophie','Karim','Julie','Thomas','Amina'];
+  auteurs text[] := ARRAY['Sophie','Karim','Julie','Lucas','Emma','Hugo','Thomas','Amina','Mehdi','Claire'];
   taches  text[] := ARRAY['Vérifier températures frigos','Contrôle propreté sanitaires',
                           'Rangement gondole boissons','Inventaire rapide snacking',
                           'Vider corbeilles zone restauration','Rapport caisse / litiges'];

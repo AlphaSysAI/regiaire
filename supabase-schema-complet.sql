@@ -1,5 +1,5 @@
 -- =============================================================================
--- RégiAire — Schéma PostgreSQL complet (Supabase)
+-- OrbitAire — Schéma PostgreSQL complet (Supabase)
 -- =============================================================================
 -- À exécuter dans l’éditeur SQL Supabase (projet vierge ou complément).
 -- Idempotent : CREATE IF NOT EXISTS, DROP POLICY IF EXISTS avant recréation.
@@ -158,6 +158,7 @@ CREATE TABLE IF NOT EXISTS public.employees (
   heures_mois INTEGER NOT NULL DEFAULT 151,
   quart_prefere TEXT[] DEFAULT ARRAY[]::TEXT[],
   quart_obligatoire VARCHAR(10),
+  profil_equipe VARCHAR(20) NOT NULL DEFAULT 'jour',
   created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
   updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
   CONSTRAINT employees_quart_prefere_check CHECK (
@@ -166,6 +167,9 @@ CREATE TABLE IF NOT EXISTS public.employees (
       array_length(quart_prefere, 1) > 0
       AND quart_prefere <@ ARRAY['6-14', '14-22', '22-6']::TEXT[]
     )
+  ),
+  CONSTRAINT employees_profil_equipe_check CHECK (
+    profil_equipe IN ('jour', 'nuit', 'nuit_aprem')
   )
 );
 
@@ -445,7 +449,7 @@ CREATE POLICY "Users can update feedback for their aire verdicts" ON public.ai_v
 INSERT INTO public.aires (id, name, city)
 VALUES (
   'a0000000-0000-4000-8000-000000000001',
-  'Aire Démo RégiAire',
+  'Aire Démo OrbitAire',
   'Lyon'
 )
 ON CONFLICT (id) DO NOTHING;

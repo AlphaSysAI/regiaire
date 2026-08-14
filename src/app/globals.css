@@ -1,28 +1,38 @@
 @import "tailwindcss";
 
 @theme inline {
-  --font-sans: var(--font-inter); /* On utilise Inter pour un look pro */
-  --color-brand: #f97316;         /* Orange RégiAire */
+  --font-sans: var(--font-sans);
+  --font-display: var(--font-display);
+  --color-brand: #22d3ee;
+  --color-accent: #f59e0b;
+  --color-surface: #0b1220;
 }
 
 :root {
-  /* On définit des variables sombres par défaut */
-  --background: #020617; /* slate-950 */
-  --foreground: #f8fafc; /* slate-50 */
-  --card: #1e293b;       /* slate-800 */
-  --border: #334155;     /* slate-700 */
+  --background: #020617;
+  --foreground: #f1f5f9;
+  --card: #0f172a;
+  --border: #1e293b;
+  --orbit-cyan: #22d3ee;
+  --orbit-amber: #f59e0b;
+  --orbit-grid: rgba(34, 211, 238, 0.06);
 }
 
 body {
   background-color: var(--background);
+  background-image:
+    radial-gradient(ellipse 80% 50% at 50% -20%, rgba(34, 211, 238, 0.12), transparent),
+    linear-gradient(var(--orbit-grid) 1px, transparent 1px),
+    linear-gradient(90deg, var(--orbit-grid) 1px, transparent 1px);
+  background-size: auto, 48px 48px, 48px 48px;
   color: var(--foreground);
-  font-family: ui-sans-serif, system-ui, -apple-system, sans-serif;
   min-height: 100vh;
 }
 
-/* --- CUSTOMISATION DU SCANNER RÉGIAIRE --- */
+h1, h2, h3, .font-display {
+  font-family: var(--font-display), var(--font-sans), system-ui, sans-serif;
+}
 
-/* Conteneur principal du scanner */
 #reader {
   border: none !important;
   background-color: var(--card) !important;
@@ -30,56 +40,44 @@ body {
   overflow: hidden !important;
 }
 
-/* Vidéo du scan */
 #reader video {
   border-radius: 1rem !important;
   object-fit: cover !important;
 }
 
-/* Boutons générés par la librairie (Start/Stop Scanning) */
 #reader__dashboard_section_csr button {
-  background-color: #f97316 !important; /* Orange de la marque */
+  background-color: #0891b2 !important;
   color: white !important;
   border-radius: 0.75rem !important;
   padding: 12px 24px !important;
-  font-weight: 800 !important;
+  font-weight: 700 !important;
   text-transform: uppercase !important;
   letter-spacing: 0.05em !important;
   font-size: 0.75rem !important;
   border: none !important;
   margin-top: 15px !important;
   cursor: pointer;
-  transition: all 0.2s ease;
   width: 100%;
 }
 
-#reader__dashboard_section_csr button:active {
-  transform: scale(0.95);
-  opacity: 0.9;
-}
-
-/* Textes de statut (ex: "Requesting camera permissions") */
-#reader__dashboard_section_csr span, 
+#reader__dashboard_section_csr span,
 #reader__status_span,
 #reader__header_message {
-  color: #94a3b8 !important; /* slate-400 */
+  color: #94a3b8 !important;
   font-weight: 500 !important;
   font-size: 0.85rem !important;
 }
 
-/* Sélecteur de caméra (Dropdown) */
 #reader__camera_selection {
   padding: 10px !important;
   border-radius: 0.75rem !important;
   border: 1px solid var(--border) !important;
-  background-color: #0f172a !important; /* slate-900 */
+  background-color: #0f172a !important;
   color: white !important;
   width: 100% !important;
   margin-bottom: 10px !important;
-  font-size: 0.9rem !important;
 }
 
-/* Masquer le lien de la librairie pour un look plus "App Pro" */
 #reader__dashboard_section_fsr a {
   display: none !important;
 }
@@ -90,6 +88,6 @@ input::-webkit-inner-spin-button {
   margin: 0;
 }
 
-input[type=number] {
+input[type="number"] {
   -moz-appearance: textfield;
 }

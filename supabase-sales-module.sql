@@ -1,5 +1,5 @@
 -- =============================================================================
--- RégiAire — Module VENTES (chiffre d'affaires) + analytics verdict IA
+-- OrbitAire — Module VENTES (chiffre d'affaires) + analytics verdict IA
 -- =============================================================================
 -- À exécuter dans l'éditeur SQL Supabase APRÈS supabase-schema-complet.sql.
 -- Ajoute :

@@ -4,6 +4,9 @@ import { createClient } from '@supabase/supabase-js';
 const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL!;
 const supabaseServiceKey = process.env.SUPABASE_SERVICE_ROLE_KEY || process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!;
 const TIMEFOLD_API_URL = process.env.TIMEFOLD_API_URL || 'http://localhost:8080';
+const TIMEFOLD_TIMEOUT_MS = 200_000;
+
+export const maxDuration = 210;
 
 const supabase = createClient(supabaseUrl, supabaseServiceKey, {
   auth: { persistSession: false, autoRefreshToken: false },
@@ -48,6 +51,7 @@ export async function POST(req: NextRequest) {
             ? [emp.quart_prefere] 
             : [],
         mandatoryShift: emp.quart_obligatoire || null,
+        profilEquipe: emp.profil_equipe || null,
       })),
       period: {
         start: periode_debut.toISOString().split('T')[0],
@@ -63,12 +67,15 @@ export async function POST(req: NextRequest) {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(timefoldRequest),
-        signal: AbortSignal.timeout(120000), // Timeout de 2 minutes
+        signal: AbortSignal.timeout(TIMEFOLD_TIMEOUT_MS),
       });
     } catch (fetchError: any) {
       console.error('Erreur de connexion Timefold:', fetchError);
-      const errorMessage = fetchError.name === 'AbortError' 
-        ? 'Timeout: Le backend Timefold met trop de temps à répondre'
+      const isTimeout = fetchError.name === 'AbortError'
+        || fetchError.name === 'TimeoutError'
+        || fetchError.message?.toLowerCase().includes('timeout');
+      const errorMessage = isTimeout
+        ? 'Timeout: Le backend Timefold met trop de temps à répondre. Réessayez avec moins d\'employés ou un mois plus court.'
         : fetchError.code === 'ECONNREFUSED' || fetchError.message?.includes('fetch failed')
           ? `Impossible de se connecter au backend Timefold sur ${TIMEFOLD_API_URL}. Vérifiez que le backend est démarré (mvn spring-boot:run dans timefold-backend/)`
           : `Erreur de connexion: ${fetchError.message}`;
@@ -181,7 +188,7 @@ function convertTimefoldToPlanningFormat(
       shiftsByDate[assignment.date].push({
         employee: assignment.employeeName,
         quart: mapShiftTypeToQuart(assignment.shiftType),
-        heures: assignment.hours || 8,
+        heures: assignment.hours ?? (assignment.shiftType === '22-6' ? 8 : 7.5),
         debut: assignment.startTime || '06:00',
         fin: assignment.endTime || '14:00',
       });
@@ -194,7 +201,7 @@ function convertTimefoldToPlanningFormat(
           weekends_travailles: 0,
         };
       }
-      resume.heures_par_employe[assignment.employeeName].total += (assignment.hours || 8);
+      resume.heures_par_employe[assignment.employeeName].total += (assignment.hours ?? (assignment.shiftType === '22-6' ? 8 : 7.5));
       if (assignment.shiftType === '22-6') {
         resume.heures_par_employe[assignment.employeeName].nuits += 1;
       }

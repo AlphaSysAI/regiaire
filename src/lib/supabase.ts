@@ -7,7 +7,7 @@ export const supabase = createClient(supabaseUrl, supabaseAnonKey, {
   auth: {
     persistSession: true,
     autoRefreshToken: true,
-    storageKey: 'regiaire-auth-token',
+    storageKey: 'orbitaire-auth-token',
   }
 });
 

@@ -11,6 +11,8 @@ public class Employee {
     private int contractHoursPerMonth;
     private List<String> preferredShifts;
     private String mandatoryShift;
+    /** jour | nuit | nuit_aprem */
+    private String profilEquipe;
 
     public Employee() {
     }
@@ -20,6 +22,7 @@ public class Employee {
         this.name = name;
         this.contractHoursPerWeek = contractHoursPerWeek;
         this.contractHoursPerMonth = contractHoursPerMonth;
+        this.profilEquipe = EmployeeProfile.JOUR;
     }
 
     public String getId() { return id; }
@@ -34,4 +37,30 @@ public class Employee {
     public void setPreferredShifts(List<String> preferredShifts) { this.preferredShifts = preferredShifts; }
     public String getMandatoryShift() { return mandatoryShift; }
     public void setMandatoryShift(String mandatoryShift) { this.mandatoryShift = mandatoryShift; }
+    public String getProfilEquipe() { return profilEquipe; }
+    public void setProfilEquipe(String profilEquipe) { this.profilEquipe = profilEquipe; }
+
+    public String resolvedProfil() {
+        return EmployeeProfile.resolve(profilEquipe, mandatoryShift);
+    }
+
+    public boolean isNightTeam() {
+        return EmployeeProfile.isNightTeam(resolvedProfil());
+    }
+
+    public boolean isDayWorker() {
+        return EmployeeProfile.isDayWorker(resolvedProfil());
+    }
+
+    @Override
+    public boolean equals(Object o) {
+        if (this == o) return true;
+        if (!(o instanceof Employee other)) return false;
+        return id != null && id.equals(other.id);
+    }
+
+    @Override
+    public int hashCode() {
+        return id != null ? id.hashCode() : 0;
+    }
 }

@@ -1,4 +1,4 @@
-# 🧠 Système d'Apprentissage IA - RégiAire
+# 🧠 Système d'Apprentissage IA - OrbitAire
 
 ## 📋 Vue d'ensemble
 

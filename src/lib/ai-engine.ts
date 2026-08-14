@@ -1,35 +1,56 @@
-export function calculateSmartOrder(products: any[], weather: any, isVacances: boolean) {
-    return products.map(product => {
-      let suggestion = "Maintenir";
-      let coefficient = 1.0;
-      let reason = "Flux stable";
-  
-      // 1. Croisement Météo + Catégorie
-      if (weather.temp > 25 && product.category === 'Boissons') {
-        coefficient += 0.4; // +40% de demande
-        reason = "Forte chaleur prévue";
-      }
-  
-      // 2. Croisement Vacances + Snacking
-      if (isVacances && (product.category === 'Snacking' || product.category === 'Boulangerie')) {
-        coefficient += 0.25; // +25% de flux touristique
-        reason = "Période de vacances scolaires";
-      }
-  
-      // 3. Analyse des Ruptures (Urgence)
-      if (product.current_stock <= product.min_threshold) {
-        suggestion = "Réapprovisionnement Urgent";
-        coefficient += 0.1; // Sécurité supplémentaire
-      }
-  
-      // 4. Calcul de la quantité suggérée
-      const quantityToOrder = Math.ceil((product.target_stock * coefficient) - product.current_stock);
-  
-      return {
-        ...product,
-        suggestedQuantity: Math.max(0, quantityToOrder),
-        reason: reason,
-        priority: product.current_stock <= 2 ? 'Haute' : 'Normale'
-      };
-    });
-  }
+/**
+ * @deprecated Utiliser `@/services/orbitaire/predictiveEngine`.
+ * Conservé pour compatibilité avec d'anciens appels.
+ */
+import { classifyCategory, runPredictiveEngine } from '@/services/orbitaire/predictiveEngine';
+
+export function calculateSmartOrder(
+  products: Array<{
+    id?: string;
+    name?: string;
+    category?: string;
+    current_stock?: number;
+    min_threshold?: number;
+    target_stock?: number;
+  }>,
+  weather: { temp?: number; condition?: string },
+  isVacances: boolean
+) {
+  const planDate = new Date().toISOString().split('T')[0];
+  const result = runPredictiveEngine({
+    planDate,
+    horizonDays: 3,
+    salesHistory: [],
+    weather: [
+      {
+        date: planDate,
+        tempMaxC: weather.temp ?? 15,
+        condition: weather.condition,
+        alertLevel: 'none',
+      },
+    ],
+    traffic: [{ date: planDate, trafficScore: 55 }],
+    calendar: [{ date: planDate, isSchoolHoliday: isVacances }],
+    stocks: products.map((p, i) => ({
+      productId: p.id || `p-${i}`,
+      name: p.name || 'Produit',
+      category: p.category || 'Divers',
+      currentStock: p.current_stock ?? 0,
+      minThreshold: p.min_threshold,
+      targetStock: p.target_stock,
+    })),
+  });
+
+  return result.recommendations.map((r) => ({
+    id: r.productId,
+    name: r.name,
+    category: r.category,
+    categoryKind: classifyCategory(r.category),
+    current_stock: r.currentStock,
+    suggestedQuantity: r.suggestedOrderQty,
+    reason: r.justification.summary,
+    priority: r.riskStatus === 'rupture_imminente' ? 'Haute' : 'Normale',
+    confidencePct: r.confidencePct,
+    riskStatus: r.riskStatus,
+  }));
+}

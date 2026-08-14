@@ -4,7 +4,7 @@
 
 1. **Créer un compte** : https://developer.tomtom.com/user/register
 2. **Créer une app** : https://developer.tomtom.com/user/apps
-   - Nom : "RégiAire"
+   - Nom : "OrbitAire"
    - Services : Active "Traffic Flow API" et "Traffic Incidents API"
 3. **Copier la clé API**
 4. **Ajouter dans `.env.local`** :

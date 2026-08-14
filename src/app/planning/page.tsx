@@ -19,7 +19,14 @@ interface Employee {
   heures_mois: number;
   quart_prefere: string[];
   quart_obligatoire?: string;
+  profil_equipe?: 'jour' | 'nuit' | 'nuit_aprem';
 }
+
+const PROFIL_LABELS: Record<string, string> = {
+  jour: 'Journée (matin/aprem)',
+  nuit: 'Nuit exclusive',
+  nuit_aprem: 'Nuit + aprem occasionnels',
+};
 
 interface Schedule {
   id: string;
@@ -110,6 +117,7 @@ export default function PlanningPage() {
     heures_mois: 151,
     quart_prefere: [],
     quart_obligatoire: '',
+    profil_equipe: 'jour',
   });
 
   useEffect(() => {
@@ -162,6 +170,15 @@ export default function PlanningPage() {
   async function handleAddEmployee() {
     if (!aireId || !newEmployee.prenom || !newEmployee.nom) return;
 
+    const profil = newEmployee.profil_equipe || 'jour';
+    const nightTeamCount = employees.filter(e =>
+      e.profil_equipe === 'nuit' || e.profil_equipe === 'nuit_aprem'
+    ).length;
+    if ((profil === 'nuit' || profil === 'nuit_aprem') && nightTeamCount >= 2) {
+      alert('Maximum 2 employés nocturnes (nuit exclusive ou nuit + aprem).');
+      return;
+    }
+
     const { data, error } = await supabase
       .from('employees')
       .insert({
@@ -171,7 +188,8 @@ export default function PlanningPage() {
         heures_semaine: newEmployee.heures_semaine,
         heures_mois: newEmployee.heures_mois,
         quart_prefere: newEmployee.quart_prefere,
-        quart_obligatoire: newEmployee.quart_obligatoire || null,
+        quart_obligatoire: profil === 'nuit' || profil === 'nuit_aprem' ? '22-6' : null,
+        profil_equipe: profil,
       })
       .select()
       .single();
@@ -190,6 +208,7 @@ export default function PlanningPage() {
       heures_mois: 151,
       quart_prefere: [],
       quart_obligatoire: '',
+      profil_equipe: 'jour',
     });
     setShowAddEmployee(false);
   }
@@ -377,7 +396,7 @@ export default function PlanningPage() {
     employeesList.forEach(emp => {
       hoursByEmployee[emp] = planning.reduce((total: number, day: any) => {
         const empShifts = day.shifts?.filter((s: any) => s.employee === emp) || [];
-        return total + empShifts.reduce((sum: number, s: any) => sum + (s.heures || 8), 0);
+        return total + empShifts.reduce((sum: number, s: any) => sum + (s.heures ?? (s.quart === '22-6' ? 8 : 7.5)), 0);
       }, 0);
     });
 
@@ -461,7 +480,7 @@ export default function PlanningPage() {
                 >
                   <div className="text-white font-medium text-sm">{emp}</div>
                   <div className="text-slate-300 text-xs mt-1">
-                    {totalHours}h / {expectedHours}h ({percent}%)
+                    {totalHours.toFixed(1)}h / {expectedHours}h ({percent}%)
                   </div>
                   {Math.abs(deviation) > 5 && (
                     <div className={`text-xs mt-1 ${deviation > 0 ? 'text-orange-400' : 'text-red-400'}`}>
@@ -527,6 +546,11 @@ export default function PlanningPage() {
                     <div className="text-slate-300 text-sm mt-1">
                       {emp.heures_semaine}h/sem • {emp.heures_mois}h/mois
                     </div>
+                    {emp.profil_equipe && (
+                      <div className="text-orange-400 text-xs mt-1 font-medium">
+                        {PROFIL_LABELS[emp.profil_equipe] || emp.profil_equipe}
+                      </div>
+                    )}
                     {emp.quart_prefere && emp.quart_prefere.length > 0 && (
                       <div className="text-slate-400 text-xs mt-1">
                         Préféré: {emp.quart_prefere.join(', ')}
@@ -774,17 +798,23 @@ export default function PlanningPage() {
                 </div>
               </div>
               <div>
-                <label className="block text-slate-300 text-sm mb-1">Quart obligatoire (optionnel)</label>
+                <label className="block text-slate-300 text-sm mb-1">Profil équipe</label>
                 <select
-                  value={newEmployee.quart_obligatoire || ''}
-                  onChange={(e) => setNewEmployee({ ...newEmployee, quart_obligatoire: e.target.value || undefined })}
+                  value={newEmployee.profil_equipe || 'jour'}
+                  onChange={(e) => setNewEmployee({
+                    ...newEmployee,
+                    profil_equipe: e.target.value as Employee['profil_equipe'],
+                    quart_obligatoire: e.target.value === 'jour' ? '' : '22-6',
+                  })}
                   className="w-full bg-slate-700 border border-slate-600 text-white px-3 py-2 rounded-lg"
                 >
-                  <option value="">Aucun</option>
-                  <option value="6-14">6-14</option>
-                  <option value="14-22">14-22</option>
-                  <option value="22-6">22-6</option>
+                  <option value="jour">Journée — matin/aprem uniquement</option>
+                  <option value="nuit">Nuit exclusive (2e nocturne)</option>
+                  <option value="nuit_aprem">Nuit + aprem occasionnels (1er nocturne)</option>
                 </select>
+                <p className="text-slate-500 text-xs mt-1">
+                  Max 2 nocturnes. Aprem jamais le lendemain d&apos;une nuit. Repos 11 h (Code du travail).
+                </p>
               </div>
               <button
                 onClick={handleAddEmployee}
