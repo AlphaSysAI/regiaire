@@ -41,9 +41,10 @@ import type {
 } from '@/services/orbitaire/predictiveEngine';
 import {
   Area,
-  AreaChart,
   CartesianGrid,
+  ComposedChart,
   Legend,
+  Line,
   ResponsiveContainer,
   Tooltip,
   XAxis,
@@ -81,6 +82,12 @@ export default function Dashboard() {
   const [selectedAire, setSelectedAire] = useState<string | null>(null);
   const [aires, setAires] = useState<AireOption[]>([]);
   const [prediction, setPrediction] = useState<PredictiveEngineOutput | null>(null);
+  const [revenueForecast, setRevenueForecast] = useState<{
+    todayTtc: number;
+    horizonTtc: number;
+    vsJ7Pct: number | null;
+    topDriver: string | null;
+  } | null>(null);
   const [predictError, setPredictError] = useState<string | null>(null);
   const [chartHorizon, setChartHorizon] = useState<ChartHorizon>('daily');
   const [adjustedQty, setAdjustedQty] = useState<Record<string, number>>({});
@@ -95,15 +102,24 @@ export default function Dashboard() {
     setPredictLoading(true);
     setPredictError(null);
     try {
-      const res = await fetch('/api/orbitaire/predict', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ aire_id: aireId, horizon_days: 7 }),
-      });
-      const data = await res.json();
-      if (!res.ok || !data.success) {
+      const [stockRes, revenueRes] = await Promise.all([
+        fetch('/api/orbitaire/predict', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ aire_id: aireId, horizon_days: 7 }),
+        }),
+        fetch('/api/orbitaire/revenue', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ aire_id: aireId, horizon_days: 7 }),
+        }),
+      ]);
+      const data = await stockRes.json();
+      if (!stockRes.ok || !data.success) {
         throw new Error(data.error || 'Échec du moteur prédictif');
       }
+
+      const revenueData = await revenueRes.json().catch(() => null);
       startTransition(() => {
         setPrediction(data.prediction as PredictiveEngineOutput);
         const defaults: Record<string, number> = {};
@@ -112,6 +128,18 @@ export default function Dashboard() {
         }
         setAdjustedQty(defaults);
         setValidatedIds(new Set());
+
+        if (revenueData?.success && revenueData.prediction?.days?.[0]) {
+          const day0 = revenueData.prediction.days[0];
+          setRevenueForecast({
+            todayTtc: day0.predictedTotalRevenue.ttc,
+            horizonTtc: revenueData.prediction.horizonTotal.ttc,
+            vsJ7Pct: day0.comparison?.vsJ7?.pct ?? null,
+            topDriver: day0.driverFactors?.[0]?.label ?? null,
+          });
+        } else {
+          setRevenueForecast(null);
+        }
       });
     } catch (err) {
       setPredictError(err instanceof Error ? err.message : 'Erreur prédiction');
@@ -255,9 +283,8 @@ export default function Dashboard() {
   const chartData = (() => {
     if (!prediction) return [];
     if (chartHorizon === 'hourly') {
-      // Approximate peak-hour shape from daily prediction
       const today = prediction.series.find((s) => s.date === prediction.planDate);
-      const base = today?.predictedSales ?? 40;
+      const base = Math.max(today?.predictedSales ?? 0, 40);
       return [8, 10, 11, 12, 14, 16, 18, 20].map((h) => {
         const peak = h >= 11 && h <= 15 ? 1.35 : h >= 17 && h <= 19 ? 1.15 : 0.7;
         const pred = Math.round(base * peak * 0.12 * 10) / 10;
@@ -265,8 +292,8 @@ export default function Dashboard() {
           label: `${h}h`,
           predicted: pred,
           actual: null as number | null,
-          low: pred * 0.88,
-          high: pred * 1.12,
+          low: Math.max(0, pred * 0.88),
+          band: pred * 0.24,
           traffic: today?.trafficIndex ?? 50,
         };
       });
@@ -280,23 +307,31 @@ export default function Dashboard() {
         byWeek[week].actual += s.actualSales ?? 0;
         byWeek[week].n += 1;
       });
-      return Object.entries(byWeek).map(([label, v]) => ({
-        label,
-        predicted: Math.round(v.predicted),
-        actual: v.actual > 0 ? Math.round(v.actual) : null,
-        low: Math.round(v.predicted * 0.88),
-        high: Math.round(v.predicted * 1.12),
-        traffic: 55,
-      }));
+      return Object.entries(byWeek).map(([label, v]) => {
+        const predicted = Math.round(v.predicted);
+        const low = Math.round(predicted * 0.88);
+        return {
+          label,
+          predicted,
+          actual: v.actual > 0 ? Math.round(v.actual) : null,
+          low,
+          band: Math.max(1, Math.round(predicted * 0.24)),
+          traffic: 55,
+        };
+      });
     }
-    return prediction.series.map((s) => ({
-      label: formatShortDate(s.date),
-      predicted: s.predictedSales,
-      actual: s.actualSales,
-      low: s.confidenceLow,
-      high: s.confidenceHigh,
-      traffic: s.trafficIndex,
-    }));
+    return prediction.series.map((s) => {
+      const low = s.confidenceLow;
+      const high = s.confidenceHigh;
+      return {
+        label: formatShortDate(s.date),
+        predicted: s.predictedSales,
+        actual: s.actualSales,
+        low,
+        band: Math.max(0, high - low),
+        traffic: s.trafficIndex,
+      };
+    });
   })();
 
   const exportOrders = () => {
@@ -389,13 +424,30 @@ export default function Dashboard() {
                 {kpis?.ruptureRiskCount ?? '—'}
               </p>
             </div>
-            <div className="rounded-xl border border-slate-800 bg-slate-900/80 px-3 py-2">
+            <div
+              className="rounded-xl border border-slate-800 bg-slate-900/80 px-3 py-2"
+              title={revenueForecast?.topDriver ?? undefined}
+            >
               <p className="text-[9px] font-semibold uppercase tracking-wider text-slate-400">
-                CA opportunité
+                CA prévu J
               </p>
               <p className="text-lg font-bold tabular-nums text-cyan-300">
-                {kpis ? `+${kpis.capturedRevenueOpportunityEur}€` : '—'}
+                {revenueForecast
+                  ? `${Math.round(revenueForecast.todayTtc).toLocaleString('fr-FR')}€`
+                  : kpis
+                    ? `+${kpis.capturedRevenueOpportunityEur}€`
+                    : '—'}
               </p>
+              {revenueForecast?.vsJ7Pct != null && (
+                <p
+                  className={`text-[10px] tabular-nums ${
+                    revenueForecast.vsJ7Pct >= 0 ? 'text-emerald-400' : 'text-rose-400'
+                  }`}
+                >
+                  {revenueForecast.vsJ7Pct >= 0 ? '+' : ''}
+                  {revenueForecast.vsJ7Pct}% vs J-7
+                </p>
+              )}
             </div>
             <div className="flex items-center gap-2 rounded-xl border border-slate-800 bg-slate-900/80 px-3 py-2">
               {weather.condition === 'Rain' ? (
@@ -485,54 +537,71 @@ export default function Dashboard() {
               </div>
             ) : (
               <ResponsiveContainer width="100%" height="100%">
-                <AreaChart data={chartData}>
+                <ComposedChart data={chartData} margin={{ top: 8, right: 8, left: 0, bottom: 0 }}>
                   <defs>
-                    <linearGradient id="predFill" x1="0" y1="0" x2="0" y2="1">
-                      <stop offset="0%" stopColor="#22d3ee" stopOpacity={0.35} />
-                      <stop offset="100%" stopColor="#22d3ee" stopOpacity={0} />
-                    </linearGradient>
                     <linearGradient id="bandFill" x1="0" y1="0" x2="0" y2="1">
-                      <stop offset="0%" stopColor="#64748b" stopOpacity={0.25} />
-                      <stop offset="100%" stopColor="#64748b" stopOpacity={0} />
+                      <stop offset="0%" stopColor="#22d3ee" stopOpacity={0.22} />
+                      <stop offset="100%" stopColor="#22d3ee" stopOpacity={0.04} />
                     </linearGradient>
                   </defs>
                   <CartesianGrid stroke="#1e293b" strokeDasharray="3 3" />
                   <XAxis dataKey="label" tick={{ fill: '#94a3b8', fontSize: 11 }} />
-                  <YAxis tick={{ fill: '#94a3b8', fontSize: 11 }} />
+                  <YAxis
+                    tick={{ fill: '#94a3b8', fontSize: 11 }}
+                    domain={[0, (dataMax: number) => Math.max(dataMax * 1.15, 10)]}
+                    allowDecimals={false}
+                  />
                   <Tooltip
                     contentStyle={{
                       background: '#0f172a',
                       border: '1px solid #334155',
                       borderRadius: 12,
                     }}
+                    formatter={(value, name) => {
+                      if (name === 'Intervalle' || value == null) return [null, null];
+                      const n = typeof value === 'number' ? value : Number(value);
+                      return [Number.isFinite(n) ? Math.round(n) : value, String(name)];
+                    }}
                   />
                   <Legend />
+                  {/* Bande de confiance = low (invisible) + band (high-low) empilés */}
                   <Area
                     type="monotone"
-                    dataKey="high"
-                    name="Intervalle haut"
-                    stroke="transparent"
-                    fill="url(#bandFill)"
-                    stackId="band"
+                    dataKey="low"
+                    stackId="conf"
+                    stroke="none"
+                    fill="transparent"
+                    name="_"
+                    legendType="none"
+                    tooltipType="none"
                   />
                   <Area
+                    type="monotone"
+                    dataKey="band"
+                    stackId="conf"
+                    stroke="none"
+                    fill="url(#bandFill)"
+                    name="Intervalle"
+                  />
+                  <Line
                     type="monotone"
                     dataKey="predicted"
                     name="Prédiction OrbitAire"
                     stroke="#22d3ee"
-                    fill="url(#predFill)"
-                    strokeWidth={2}
+                    strokeWidth={2.5}
+                    dot={false}
+                    activeDot={{ r: 4 }}
                   />
-                  <Area
+                  <Line
                     type="monotone"
                     dataKey="actual"
                     name="Ventes réelles"
                     stroke="#f59e0b"
-                    fill="transparent"
-                    strokeWidth={2}
+                    strokeWidth={2.5}
+                    dot={{ r: 3, fill: '#f59e0b' }}
                     connectNulls={false}
                   />
-                </AreaChart>
+                </ComposedChart>
               </ResponsiveContainer>
             )}
           </div>

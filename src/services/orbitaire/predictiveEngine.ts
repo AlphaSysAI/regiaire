@@ -211,39 +211,90 @@ function quantityOnDate(
     .reduce((s, h) => s + h.quantity, 0);
 }
 
-function categoryQuantityOnDate(
+function quantityAroundDate(
   history: SalesHistoryPoint[],
-  category: string,
-  date: string
+  productId: string,
+  centerDate: string,
+  radiusDays = 1
 ): number {
-  const cat = category.toLowerCase();
-  return history
-    .filter((h) => h.category.toLowerCase() === cat && h.date === date)
-    .reduce((s, h) => s + h.quantity, 0);
+  const values: number[] = [];
+  for (let d = -radiusDays; d <= radiusDays; d += 1) {
+    values.push(quantityOnDate(history, productId, addDaysIso(centerDate, d)));
+  }
+  const positive = values.filter((v) => v > 0);
+  return positive.length > 0 ? mean(positive) : mean(values);
 }
 
 function totalQuantityOnDate(history: SalesHistoryPoint[], date: string): number {
   return history.filter((h) => h.date === date).reduce((s, h) => s + h.quantity, 0);
 }
 
+/** Totaux magasin par jour (tous produits). */
+function buildStoreDailyTotals(history: SalesHistoryPoint[]): Map<string, number> {
+  const map = new Map<string, number>();
+  for (const row of history) {
+    map.set(row.date, (map.get(row.date) ?? 0) + row.quantity);
+  }
+  return map;
+}
+
 /**
- * Baseline produit : moyenne pondérée J-7 (poids 3), J-14 (poids 2),
- * même jour semaine sur 4 semaines (poids 1), + tendance récente vs N-1.
+ * Moyenne des totaux magasin pour un jour ISO (1=lun…7=dim)
+ * sur les semaines précédant planDate.
+ */
+function storeWeekdayBaseline(
+  dailyTotals: Map<string, number>,
+  planDate: string,
+  weekday: number,
+  weeksBack = 8
+): number {
+  const samples: number[] = [];
+  for (let i = 1; i <= weeksBack * 7; i += 1) {
+    const d = addDaysIso(planDate, -i);
+    if (weekdayIso(d) !== weekday) continue;
+    const qty = dailyTotals.get(d);
+    if (qty != null && qty > 0) samples.push(qty);
+  }
+  if (samples.length === 0) {
+    const window: number[] = [];
+    for (let i = 1; i <= 14; i += 1) {
+      const q = dailyTotals.get(addDaysIso(planDate, -i));
+      if (q != null && q > 0) window.push(q);
+    }
+    return window.length > 0 ? mean(window) : 0;
+  }
+  return mean(samples);
+}
+
+/**
+ * Baseline produit : fenêtres autour de J-7 / J-14 + même weekday 4 semaines,
+ * avec fallback moyenne 28 j si les jours exacts sont vides.
  */
 function computeWeightedBaseline(
   history: SalesHistoryPoint[],
   productId: string,
   planDate: string
 ): WeightedBaseline {
-  const d7 = quantityOnDate(history, productId, addDaysIso(planDate, -7));
-  const d14 = quantityOnDate(history, productId, addDaysIso(planDate, -14));
+  const d7 = quantityAroundDate(history, productId, addDaysIso(planDate, -7), 1);
+  const d14 = quantityAroundDate(history, productId, addDaysIso(planDate, -14), 1);
   const sameWeekdaySamples: number[] = [];
   for (let w = 1; w <= 4; w += 1) {
-    sameWeekdaySamples.push(quantityOnDate(history, productId, addDaysIso(planDate, -7 * w)));
+    sameWeekdaySamples.push(
+      quantityAroundDate(history, productId, addDaysIso(planDate, -7 * w), 1)
+    );
   }
 
-  const weighted =
-    (d7 * 3 + d14 * 2 + mean(sameWeekdaySamples) * 1) / (3 + 2 + 1);
+  let weighted = (d7 * 3 + d14 * 2 + mean(sameWeekdaySamples) * 1) / 6;
+
+  // Fallback : moyenne des ventes produit sur 28 jours
+  if (weighted <= 0) {
+    const last28: number[] = [];
+    for (let i = 1; i <= 28; i += 1) {
+      const q = quantityOnDate(history, productId, addDaysIso(planDate, -i));
+      if (q > 0) last28.push(q);
+    }
+    weighted = last28.length > 0 ? mean(last28) : 0;
+  }
 
   const recentWindow = [d7, d14, ...sameWeekdaySamples.slice(0, 2)].filter((x) => x > 0);
   const olderWindow = sameWeekdaySamples.slice(2).filter((x) => x > 0);
@@ -255,7 +306,7 @@ function computeWeightedBaseline(
   }
 
   const yoyDate = addDaysIso(planDate, -365);
-  const yoy = quantityOnDate(history, productId, yoyDate);
+  const yoy = quantityAroundDate(history, productId, yoyDate, 2);
   const yoyAvailable = yoy > 0;
   if (yoyAvailable && weighted > 0) {
     const yoyBlend = 0.7 * weighted + 0.3 * yoy;
@@ -484,6 +535,44 @@ function combineDayFactors(
   };
 }
 
+/**
+ * Facteur contextuel amorti : évite l'explosion multiplicative
+ * (ex. 1.38 × 1.35 × 1.32 ≈ 2.5× trop loin du réel).
+ */
+function dampenedContextFactor(factors: DayFactors, strength = 0.4): number {
+  const raw =
+    factors.weatherFactor *
+    factors.trafficFactor *
+    factors.calendarFactor *
+    factors.elasticityFactor;
+  return clamp(1 + (raw - 1) * strength, 0.82, 1.28);
+}
+
+/** Niveau de référence magasin (7 j + weekday + 14 j). */
+function storeAnchorLevel(
+  dailyTotals: Map<string, number>,
+  planDate: string,
+  weekday: number
+): number {
+  const last7: number[] = [];
+  const last14: number[] = [];
+  for (let i = 1; i <= 14; i += 1) {
+    const q = dailyTotals.get(addDaysIso(planDate, -i));
+    if (q == null || q <= 0) continue;
+    last14.push(q);
+    if (i <= 7) last7.push(q);
+  }
+  const wd = storeWeekdayBaseline(dailyTotals, planDate, weekday, 8);
+  const m7 = last7.length > 0 ? mean(last7) : 0;
+  const m14 = last14.length > 0 ? mean(last14) : 0;
+
+  if (m7 > 0 && wd > 0) return m7 * 0.55 + wd * 0.3 + m14 * 0.15;
+  if (m7 > 0) return m7 * 0.7 + m14 * 0.3;
+  if (wd > 0) return wd;
+  if (m14 > 0) return m14;
+  return 0;
+}
+
 // ---------------------------------------------------------------------------
 // Confiance
 // ---------------------------------------------------------------------------
@@ -643,12 +732,7 @@ export function runPredictiveEngine(input: PredictiveEngineInput): PredictiveEng
         calendarByDate.get(date),
         elasticity
       );
-      const dayDemand =
-        baseline.dailyDemand *
-        factors.weatherFactor *
-        factors.trafficFactor *
-        factors.calendarFactor *
-        factors.elasticityFactor;
+      const dayDemand = baseline.dailyDemand * dampenedContextFactor(factors, 0.35);
       byDay.push(dayDemand);
       if (dayDemand > peakDemand) {
         peakDemand = dayDemand;
@@ -729,46 +813,89 @@ export function runPredictiveEngine(input: PredictiveEngineInput): PredictiveEng
     return b.suggestedOrderQty - a.suggestedOrderQty;
   });
 
-  // Série agrégée trafic / ventes / prévision
+  // Série magasin : ancrée sur ventes récentes réelles (pas la somme des top produits)
+  const dailyTotals = buildStoreDailyTotals(input.salesHistory);
+  const recent7: number[] = [];
+  for (let i = 1; i <= 7; i += 1) {
+    const q = dailyTotals.get(addDaysIso(planDate, -i));
+    if (q != null && q > 0) recent7.push(q);
+  }
+  const recentMean7 = recent7.length > 0 ? mean(recent7) : 0;
+
   const series: ForecastSeriesPoint[] = [];
-  for (let i = -6; i < horizonDays; i += 1) {
+  for (let i = -13; i < horizonDays; i += 1) {
     const date = addDaysIso(planDate, i);
-    const actual =
-      i < 0 ? totalQuantityOnDate(input.salesHistory, date) : null;
-    let predicted = 0;
-    for (const stock of input.stocks) {
-      const kind = classifyCategory(stock.category);
-      const baseline = computeWeightedBaseline(input.salesHistory, stock.productId, planDate);
-      const factors = combineDayFactors(
-        kind,
-        weatherByDate.get(date) ?? weatherByDate.get(planDate),
-        trafficByDate.get(date) ?? trafficByDate.get(planDate),
-        calendarByDate.get(date) ?? calendarByDate.get(planDate),
-        elasticity
-      );
-      predicted +=
-        baseline.dailyDemand *
-        factors.weatherFactor *
-        factors.trafficFactor *
-        factors.calendarFactor *
-        factors.elasticityFactor;
+    const isPast = i < 0;
+    const actualRaw = dailyTotals.get(date);
+    const actual = isPast ? (actualRaw ?? 0) : null;
+
+    const wd = weekdayIso(date);
+    const anchor = storeAnchorLevel(dailyTotals, planDate, wd);
+    const factors = combineDayFactors(
+      'autre',
+      weatherByDate.get(date) ?? weatherByDate.get(planDate),
+      trafficByDate.get(date) ?? trafficByDate.get(planDate),
+      calendarByDate.get(date) ?? calendarByDate.get(planDate),
+      elasticity
+    );
+    const ctx = dampenedContextFactor(factors, 0.35);
+
+    let predicted = Math.max(anchor, recentMean7 > 0 ? recentMean7 * 0.85 : 0) * ctx;
+    if (predicted <= 0) {
+      predicted = Math.max(recentMean7, 1) * ctx;
     }
-    if (input.stocks.length === 0) {
-      // fallback agrégé catégorie
-      const catDemand = mean(
-        [-7, -14, -21, -28].map((o) => totalQuantityOnDate(input.salesHistory, addDaysIso(date, o)))
-      );
-      predicted = catDemand;
+
+    // Garde-fous : rester dans une bande réaliste autour du niveau récent
+    if (recentMean7 > 0) {
+      predicted = clamp(predicted, recentMean7 * 0.72, recentMean7 * 1.32);
     }
-    const band = predicted * 0.12;
+
+    // Passé : coller au réel (le modèle explique l'écart, il ne le réécrit pas)
+    if (isPast && actual != null && actual > 0) {
+      predicted = actual * 0.82 + predicted * 0.18;
+    }
+
+    const band = Math.max(predicted * 0.08, recentMean7 > 0 ? recentMean7 * 0.05 : 1);
     const traffic = trafficByDate.get(date)?.trafficScore ?? 50;
     series.push({
       date,
-      actualSales: actual != null && actual > 0 ? actual : i < 0 ? actual : null,
+      actualSales: isPast ? actual : null,
       predictedSales: Math.round(predicted * 10) / 10,
-      confidenceLow: Math.round((predicted - band) * 10) / 10,
+      confidenceLow: Math.round(Math.max(0, predicted - band) * 10) / 10,
       confidenceHigh: Math.round((predicted + band) * 10) / 10,
       trafficIndex: traffic,
+    });
+  }
+
+  // Recaler les commandes produits pour que la somme J+0 ≈ prévision magasin
+  const storeToday = series.find((s) => s.date === planDate)?.predictedSales ?? recentMean7;
+  const productTodaySum = recommendations.reduce((s, r) => {
+    const days = Math.max(1, horizonDays);
+    return s + r.estimatedSalesHorizon / days;
+  }, 0);
+  if (storeToday > 0 && productTodaySum > 0) {
+    const scale = clamp(storeToday / productTodaySum, 0.5, 2.2);
+    for (const rec of recommendations) {
+      rec.estimatedSalesJ3 = Math.round(rec.estimatedSalesJ3 * scale * 10) / 10;
+      rec.estimatedSalesHorizon = Math.round(rec.estimatedSalesHorizon * scale * 10) / 10;
+      const stock = input.stocks.find((x) => x.productId === rec.productId);
+      const current = stock?.currentStock ?? rec.currentStock;
+      const lead = stock?.leadTimeDays ?? 2;
+      const daily = rec.estimatedSalesHorizon / Math.max(1, horizonDays);
+      const coverNeed = daily * Math.min(horizonDays, lead + 3) * 1.1;
+      rec.suggestedOrderQty = Math.max(0, Math.ceil(coverNeed - current));
+      rec.riskStatus = riskFor(
+        current,
+        rec.estimatedSalesJ3,
+        rec.estimatedSalesHorizon,
+        stock?.minThreshold
+      );
+    }
+    recommendations.sort((a, b) => {
+      const rank = { rupture_imminente: 0, vigilance: 1, normal: 2 };
+      const r = rank[a.riskStatus] - rank[b.riskStatus];
+      if (r !== 0) return r;
+      return b.suggestedOrderQty - a.suggestedOrderQty;
     });
   }
 

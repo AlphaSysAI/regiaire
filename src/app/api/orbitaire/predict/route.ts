@@ -61,9 +61,10 @@ export async function POST(req: NextRequest) {
     }
 
     const location = parseAireCoords(aire);
-    const historyStart = addDaysIso(planDate, -400);
+    // 90 jours suffisent pour baseline + courbe (évite la troncature Supabase 1000 rows)
+    const historyStart = addDaysIso(planDate, -90);
 
-    const [productsRes, stocksRes, salesRes] = await Promise.all([
+    const [productsRes, stocksRes] = await Promise.all([
       supabase
         .from('products')
         .select('id, ean, name, category, min_threshold, lead_time_days')
@@ -73,13 +74,39 @@ export async function POST(req: NextRequest) {
         .select('product_id, quantity')
         .eq('aire_id', aireId)
         .gt('quantity', 0),
-      supabase
+    ]);
+
+    // Pagination ventes : la limite défaut Supabase (1000) tronquait l'historique
+    // et faisait tomber prédictions + ventes réelles à ~0.
+    const salesRows: Array<{
+      product_id: string | null;
+      category: string | null;
+      sale_date: string;
+      quantity: number | null;
+      revenue_ttc: number | null;
+    }> = [];
+    const pageSize = 1000;
+    let from = 0;
+    let salesError: string | null = null;
+    for (let page = 0; page < 20; page += 1) {
+      const { data, error } = await supabase
         .from('sales')
         .select('product_id, category, sale_date, quantity, revenue_ttc')
         .eq('aire_id', aireId)
         .gte('sale_date', historyStart)
-        .lte('sale_date', planDate),
-    ]);
+        .lte('sale_date', planDate)
+        .order('sale_date', { ascending: false })
+        .range(from, from + pageSize - 1);
+      if (error) {
+        salesError = error.message;
+        break;
+      }
+      if (!data || data.length === 0) break;
+      salesRows.push(...data);
+      if (data.length < pageSize) break;
+      from += pageSize;
+    }
+    const salesRes = { data: salesRows, error: salesError };
 
     const stockByProduct = new Map<string, number>();
     for (const row of stocksRes.data || []) {
@@ -220,8 +247,11 @@ export async function POST(req: NextRequest) {
       aire: { id: aire.id, name: aire.name, city: aire.city },
       prediction,
       limitations: [
-        ...(salesRes.error ? ['Historique ventes partiellement indisponible'] : []),
+        ...(salesRes.error ? [`Historique ventes: ${salesRes.error}`] : []),
         ...(salesHistory.length === 0 ? ['Aucune vente en base — baseline dégradée'] : []),
+        ...(salesHistory.length > 0
+          ? [`${salesHistory.length} lignes de ventes chargées (90 j)`]
+          : []),
         ...(weather.length === 0 ? ['Prévisions météo indisponibles'] : []),
         ...(traffic.length === 0 ? ['Prévisions trafic indisponibles'] : []),
       ],
