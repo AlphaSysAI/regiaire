@@ -1,10 +1,11 @@
 'use client';
 
 import { useState } from 'react';
-import Link from 'next/link';
 import { supabase } from '@/lib/supabase';
 import { Lock, Mail, Loader2, ChevronRight } from 'lucide-react';
 import { AuthShell, AuthBrand, Panel, PrimaryButton } from '@/components/ui/orbit';
+import { defaultLandingPath, normalizeModules } from '@/lib/modules';
+import { isAdminEmail } from '@/lib/admin-emails';
 
 export default function LoginPage() {
   const [email, setEmail] = useState('');
@@ -24,20 +25,45 @@ export default function LoginPage() {
       });
 
       if (authError) {
-        setError("Identifiants invalides");
+        setError('Identifiants invalides');
         setLoading(false);
         return;
       }
 
-      if (data?.session) {
+      if (data?.session?.user) {
         const params = new URLSearchParams(window.location.search);
         const next = params.get('next');
-        const destination =
-          next && next.startsWith('/') && !next.startsWith('//') ? next : '/';
-        window.location.href = destination;
+        if (next && next.startsWith('/') && !next.startsWith('//')) {
+          window.location.href = next;
+          return;
+        }
+
+        if (isAdminEmail(data.session.user.email)) {
+          window.location.href = '/admin';
+          return;
+        }
+
+        const { data: profile } = await supabase
+          .from('profiles')
+          .select('enabled_modules, role, profile_completed, password_set_at')
+          .eq('id', data.session.user.id)
+          .maybeSingle();
+
+        if (profile?.role === 'admin') {
+          window.location.href = '/admin';
+          return;
+        }
+
+        if (!profile?.password_set_at && !profile?.profile_completed) {
+          window.location.href = '/invite/setup';
+          return;
+        }
+
+        const mods = normalizeModules(profile?.enabled_modules);
+        window.location.href = defaultLandingPath(mods);
       }
-    } catch (err) {
-      setError("Une erreur est survenue");
+    } catch {
+      setError('Une erreur est survenue');
       setLoading(false);
     }
   };
@@ -46,10 +72,10 @@ export default function LoginPage() {
     <AuthShell>
       <AuthBrand />
 
-      <Panel className="p-8 space-y-6">
+      <Panel className="space-y-6 p-8">
         <form onSubmit={handleLogin} className="space-y-6">
           {error && (
-            <div className="bg-red-500/10 border border-red-500/20 text-red-400 text-xs font-medium p-3 rounded-xl text-center">
+            <div className="rounded-xl border border-red-500/20 bg-red-500/10 p-3 text-center text-xs font-medium text-red-400">
               {error}
             </div>
           )}
@@ -63,7 +89,7 @@ export default function LoginPage() {
                 value={email}
                 onChange={(e) => setEmail(e.target.value)}
                 required
-                className="w-full bg-slate-950 border border-slate-800 rounded-2xl p-4 pl-12 text-sm outline-none focus:border-cyan-400 focus:ring-1 focus:ring-cyan-400/40 text-white shadow-inner"
+                className="w-full rounded-2xl border border-slate-800 bg-slate-950 p-4 pl-12 text-sm text-white shadow-inner outline-none focus:border-cyan-400 focus:ring-1 focus:ring-cyan-400/40"
               />
             </div>
 
@@ -75,12 +101,12 @@ export default function LoginPage() {
                 value={password}
                 onChange={(e) => setPassword(e.target.value)}
                 required
-                className="w-full bg-slate-950 border border-slate-800 rounded-2xl p-4 pl-12 text-sm outline-none focus:border-cyan-400 focus:ring-1 focus:ring-cyan-400/40 text-white shadow-inner"
+                className="w-full rounded-2xl border border-slate-800 bg-slate-950 p-4 pl-12 text-sm text-white shadow-inner outline-none focus:border-cyan-400 focus:ring-1 focus:ring-cyan-400/40"
               />
             </div>
           </div>
 
-          <PrimaryButton type="submit" disabled={loading} className="w-full h-14 text-sm">
+          <PrimaryButton type="submit" disabled={loading} className="h-14 w-full text-sm">
             {loading ? (
               <Loader2 className="animate-spin text-cyan-400" size={18} />
             ) : (
@@ -92,14 +118,11 @@ export default function LoginPage() {
         </form>
       </Panel>
 
-      <p className="text-center text-slate-500 text-[10px] font-medium">
-        Pas encore de compte ?{' '}
-        <Link href="/auth" className="text-cyan-400 hover:text-cyan-300">
-          Créer son compte
-        </Link>
+      <p className="text-center text-[10px] font-medium text-slate-500">
+        Accès sur invitation OrbitAire uniquement
       </p>
 
-      <p className="text-center text-slate-600 text-[9px] font-medium tracking-widest uppercase">
+      <p className="text-center text-[9px] font-medium uppercase tracking-widest text-slate-600">
         Propulsé par OrbitAI Technology
       </p>
     </AuthShell>

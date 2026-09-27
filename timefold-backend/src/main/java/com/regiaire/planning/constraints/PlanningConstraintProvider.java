@@ -198,7 +198,7 @@ public class PlanningConstraintProvider implements ConstraintProvider {
             .filter((employee, weekStart, workDays) -> workDays > WorkDayRules.IDEAL_WORK_DAYS_PER_WEEK)
             .penalize(HardSoftScore.ONE_SOFT,
                 (employee, weekStart, workDays) -> (workDays - WorkDayRules.IDEAL_WORK_DAYS_PER_WEEK) * 12)
-            .asConstraint("Prefer 5 work days / 2 rest days per week");
+            .asConstraint("Prefer 5 work days and 2 rest days per week");
     }
 
     /** Soft : éviter les jours de repos isolés (travail / repos / travail). */

@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useState, useTransition, startTransition } from 'react';
+import { useEffect, useState, startTransition } from 'react';
 import { supabase } from '@/lib/supabase';
 import {
   Sun,
@@ -48,7 +48,6 @@ import {
   YAxis,
 } from 'recharts';
 
-type AireOption = { id: string; name: string; city: string | null };
 type ChartHorizon = 'daily' | 'hourly' | 'monthly';
 
 function formatShortDate(iso: string): string {
@@ -65,7 +64,7 @@ export default function Dashboard() {
   const [aireLocation, setAireLocation] = useState<AireLocation>({});
   const [stats, setStats] = useState({ totalLoss: 0, expiringCount: 0, pendingBLCount: 0 });
   const [selectedAire, setSelectedAire] = useState<string | null>(null);
-  const [aires, setAires] = useState<AireOption[]>([]);
+  const [companyLabel, setCompanyLabel] = useState('');
   const [prediction, setPrediction] = useState<PredictiveEngineOutput | null>(null);
   const [revenueForecast, setRevenueForecast] = useState<{
     todayTtc: number;
@@ -79,7 +78,6 @@ export default function Dashboard() {
   const [pendingGroups, setPendingGroups] = useState<
     Array<{ id: string; count: number; time: string; date: string }>
   >([]);
-  const [, startUiTransition] = useTransition();
 
   const loadPrediction = async (aireId: string) => {
     setPredictLoading(true);
@@ -214,16 +212,13 @@ export default function Dashboard() {
       } = await supabase.auth.getUser();
       if (!user) return router.push('/login');
 
-      const [{ data: profile }, airesRes] = await Promise.all([
-        supabase
-          .from('profiles')
-          .select('aire_id, aires(id, name, city, latitude, longitude)')
-          .eq('id', user.id)
-          .single(),
-        fetch('/api/aires').then((r) => r.json()).catch(() => ({ aires: [] })),
-      ]);
-
-      setAires((airesRes.aires || []) as AireOption[]);
+      const { data: profile } = await supabase
+        .from('profiles')
+        .select(
+          'aire_id, company_name, full_name, aires(id, name, city, latitude, longitude)'
+        )
+        .eq('id', user.id)
+        .single();
 
       if (profile?.aire_id) {
         const location = parseAireCoords(
@@ -234,7 +229,13 @@ export default function Dashboard() {
             name?: string | null;
           } | null
         );
-        setAireLabel(aireDisplayLabel(location));
+        const label =
+          profile.company_name ||
+          aireDisplayLabel(location) ||
+          profile.full_name ||
+          'Mon espace';
+        setCompanyLabel(label);
+        setAireLabel(label);
         setAireLocation(location);
         setSelectedAire(profile.aire_id);
         runCoreLogic(profile.aire_id, location);
@@ -242,20 +243,6 @@ export default function Dashboard() {
     }
     init();
   }, [router]);
-
-  const onSelectAire = async (aireId: string) => {
-    setSelectedAire(aireId);
-    const aire = aires.find((a) => a.id === aireId);
-    const location: AireLocation = {
-      name: aire?.name,
-      city: aire?.city || undefined,
-    };
-    setAireLabel(aireDisplayLabel(location) || aire?.name || '');
-    setAireLocation(location);
-    startUiTransition(() => {
-      void runCoreLogic(aireId, location);
-    });
-  };
 
   const chartData = (() => {
     if (!prediction) return [];
@@ -338,21 +325,9 @@ export default function Dashboard() {
             </div>
             <div className="hidden items-center gap-2 rounded-xl border border-slate-800 bg-slate-900/80 px-3 py-2 sm:flex">
               <MapPin size={14} className="text-cyan-400" />
-              <select
-                value={selectedAire ?? ''}
-                onChange={(e) => onSelectAire(e.target.value)}
-                className="max-w-[200px] bg-transparent text-xs font-semibold text-slate-200 outline-none"
-              >
-                {aires.length === 0 && (
-                  <option value={selectedAire ?? ''}>{aireLabel || 'Site'}</option>
-                )}
-                {aires.map((a) => (
-                  <option key={a.id} value={a.id} className="bg-slate-900">
-                    {a.name}
-                    {a.city ? ` — ${a.city}` : ''}
-                  </option>
-                ))}
-              </select>
+              <span className="max-w-[220px] truncate text-xs font-semibold text-slate-200">
+                {companyLabel || aireLabel || 'Mon espace'}
+              </span>
             </div>
           </div>
 
@@ -430,22 +405,6 @@ export default function Dashboard() {
               </IconButton>
             </div>
           </div>
-        </div>
-
-        {/* Mobile site selector */}
-        <div className="border-t border-slate-800/60 px-4 py-2 sm:hidden">
-          <select
-            value={selectedAire ?? ''}
-            onChange={(e) => onSelectAire(e.target.value)}
-            className="w-full rounded-lg border border-slate-800 bg-slate-900 px-3 py-2 text-sm"
-          >
-            {aires.map((a) => (
-              <option key={a.id} value={a.id}>
-                {a.name}
-                {a.city ? ` — ${a.city}` : ''}
-              </option>
-            ))}
-          </select>
         </div>
       </header>
 
